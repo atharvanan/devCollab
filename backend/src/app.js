@@ -18,10 +18,8 @@ const uploadRoutes = require('./routes/upload.routes');
 
 const app = express();
 
-// Security headers
 app.use(helmet());
 
-// CORS
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:3000',
   credentials: true,
@@ -29,17 +27,15 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// Rate limiting
 const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000,
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || 100,
   message: { success: false, message: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 app.use('/api/', limiter);
 
-// Stricter limit for auth routes
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
@@ -47,25 +43,19 @@ const authLimiter = rateLimit({
 });
 app.use('/api/v1/auth/', authLimiter);
 
-// Body parsing
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser());
-
-// Sanitize MongoDB queries
 app.use(mongoSanitize());
 
-// HTTP request logging
 if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('combined', { stream: { write: (msg) => logger.info(msg.trim()) } }));
 }
 
-// Health check
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// API routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/projects', projectRoutes);
@@ -74,10 +64,7 @@ app.use('/api/v1/board', boardRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/uploads', uploadRoutes);
 
-// 404 handler
 app.use(notFound);
-
-// Global error handler
 app.use(errorHandler);
 
 module.exports = app;

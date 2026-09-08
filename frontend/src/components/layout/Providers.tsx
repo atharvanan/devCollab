@@ -15,8 +15,6 @@ const queryClient = new QueryClient({
 });
 
 function GlobalNotificationSync() {
-  // Mount once inside QueryClientProvider+Provider so the hook has access to
-  // both React Query context and Redux store. Renders nothing.
   useNotifications();
   return null;
 }
@@ -30,10 +28,8 @@ function AppInit({ children }: { children: React.ReactNode }) {
       initDone.current = true;
       store.dispatch(refreshAccessToken()).then((action: any) => {
         if (action.meta.requestStatus === 'fulfilled') {
-          // Token refreshed successfully — hydrate the user profile
           store.dispatch(fetchMe());
         }
-        // If refresh failed, fetchMe.rejected sets initialized = true in authSlice
       });
     }
   }, []);
@@ -70,4 +66,3 @@ export function Providers({ children }: { children: React.ReactNode }) {
     </Provider>
   );
 }
-

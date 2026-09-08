@@ -1,11 +1,12 @@
 'use client';
-import Link from 'next/link';
+import Link from 'next/navigation';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, FolderKanban, GitPullRequest, Bell, Settings, LogOut, Code2, ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/hooks/useRedux';
 import { logoutUser } from '@/store/slices/authSlice';
 import { uiActions } from '@/store/slices/uiSlice';
+import NextLink from 'next/link';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -27,7 +28,6 @@ export function Sidebar() {
       'fixed left-0 top-0 h-full bg-card border-r border-border flex flex-col transition-all duration-200 z-40',
       sidebarOpen ? 'w-60' : 'w-16'
     )}>
-      {/* Logo */}
       <div className="flex items-center gap-3 px-4 py-5 border-b border-border">
         <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shrink-0">
           <Code2 className="w-4 h-4 text-white" />
@@ -35,12 +35,11 @@ export function Sidebar() {
         {sidebarOpen && <span className="font-semibold text-lg">DevCollab</span>}
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 py-4 space-y-1 px-2">
         {navItems.map(({ href, label, icon: Icon }) => {
           const active = pathname.startsWith(href);
           return (
-            <Link key={href} href={href} className={cn(
+            <NextLink key={href} href={href} className={cn(
               'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors relative',
               active ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
             )}>
@@ -54,12 +53,11 @@ export function Sidebar() {
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
-            </Link>
+            </NextLink>
           );
         })}
       </nav>
 
-      {/* User + logout */}
       <div className="border-t border-border p-3 space-y-2">
         {sidebarOpen && user && (
           <div className="flex items-center gap-2 px-2 py-1">

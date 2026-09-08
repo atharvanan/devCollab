@@ -8,7 +8,6 @@ export const apiClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Lazily resolved to avoid a circular import between apiClient <-> store <-> authSlice
 let getAccessToken: () => string | null = () => null;
 let onTokenRefreshed: (token: string) => void = () => {};
 let onAuthCleared: () => void = () => {};
@@ -23,7 +22,6 @@ export const registerAuthHooks = (hooks: {
   onAuthCleared = hooks.onAuthCleared;
 };
 
-// Attach access token to every request
 apiClient.interceptors.request.use((config) => {
   const token = getAccessToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -41,7 +39,6 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
-// Auto-refresh token on 401
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {

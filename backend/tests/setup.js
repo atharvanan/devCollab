@@ -10,7 +10,6 @@ process.env.CLOUDINARY_API_SECRET = 'test';
 process.env.SMTP_USER = 'test@test.com';
 process.env.SMTP_PASS = 'test';
 
-// Increase timeout for slow async hooks (DB spin-up / teardown)
 jest.setTimeout(30000);
 
 let mongoServer;
@@ -31,5 +30,3 @@ afterAll(async () => {
     await mongoServer.stop({ doCleanup: true });
   }
 });
-
-

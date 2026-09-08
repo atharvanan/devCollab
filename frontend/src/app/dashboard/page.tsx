@@ -18,13 +18,10 @@ export default function DashboardPage() {
     return res.data.data;
   });
 
-  // Fetch count of open reviews across all user projects
   const { data: openReviewsData } = useQuery('open-reviews-count', async () => {
     const res = await apiClient.get('/reviews?status=open&limit=1');
     return res.data.data.total as number;
   });
-
-
 
   return (
     <DashboardLayout>
@@ -39,7 +36,6 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card>
             <CardContent className="p-5 flex items-center gap-4">
@@ -76,7 +72,6 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Recent projects */}
         <div>
           <h2 className="font-semibold mb-3">Recent Projects</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

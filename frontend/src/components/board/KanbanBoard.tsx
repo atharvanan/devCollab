@@ -1,16 +1,14 @@
 'use client';
-import { useEffect, useCallback } from 'react';
-import { DndContext, DragEndEvent, DragOverlay, useSensor, useSensors, PointerSensor, closestCorners } from '@dnd-kit/core';
+import { useCallback, useState } from 'react';
+import { DndContext, DragEndEvent, useSensor, useSensors, PointerSensor, closestCorners } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { Plus } from 'lucide-react';
 import { apiClient } from '@/lib/apiClient';
 import { useAppDispatch, useAppSelector } from '@/hooks/useRedux';
 import { boardActions } from '@/store/slices/boardSlice';
 import { useSocket, useJoinRoom } from '@/hooks/useSocket';
 import { COLUMNS, COLUMN_LABELS } from '@/lib/utils';
 import { BoardColumn } from './BoardColumn';
-import { useState } from 'react';
 import { TaskModal } from './TaskModal';
 
 export function KanbanBoard({ projectId }: { projectId: string }) {
@@ -21,28 +19,53 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
 
   useJoinRoom(`project:${projectId}`);
 
-  useQuery(['board', projectId], async () => {
-    const res = await apiClient.get(`/board/${projectId}`);
-    return res.data.data.board;
-  }, {
-    onSuccess: (data) => dispatch(boardActions.setBoard(data)),
-  });
+  useQuery(
+    ['board', projectId],
+    async () => {
+      const res = await apiClient.get(`/board/${projectId}`);
+      return res.data.data.board;
+    },
+    {
+      onSuccess: (data) => dispatch(boardActions.setBoard(data)),
+    }
+  );
 
-  useSocket('task:created', useCallback((task: any) => {
-    if (task.project === projectId) dispatch(boardActions.addTask(task));
-  }, [projectId, dispatch]));
+  useSocket(
+    'task:created',
+    useCallback(
+      (task: any) => {
+        if (task.project === projectId) dispatch(boardActions.addTask(task));
+      },
+      [projectId, dispatch]
+    )
+  );
 
-  useSocket('task:moved', useCallback(() => {
-    qc.invalidateQueries(['board', projectId]);
-  }, [projectId, qc]));
+  useSocket(
+    'task:moved',
+    useCallback(() => {
+      qc.invalidateQueries(['board', projectId]);
+    }, [projectId, qc])
+  );
 
-  useSocket('task:updated', useCallback((task: any) => {
-    dispatch(boardActions.updateTask(task));
-  }, [dispatch]));
+  useSocket(
+    'task:updated',
+    useCallback(
+      (task: any) => {
+        dispatch(boardActions.updateTask(task));
+      },
+      [dispatch]
+    )
+  );
 
-  useSocket('task:deleted', useCallback(({ taskId }: any) => {
-    dispatch(boardActions.removeTask(taskId));
-  }, [dispatch]));
+  useSocket(
+    'task:deleted',
+    useCallback(
+      ({ taskId }: any) => {
+        dispatch(boardActions.removeTask(taskId));
+      },
+      [dispatch]
+    )
+  );
 
   const moveMutation = useMutation(async ({ taskId, column, order }: any) => {
     await apiClient.patch(`/board/tasks/${taskId}/move`, { column, order });
@@ -62,13 +85,15 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
       if (tasks.some((t) => t._id === taskId)) fromColumn = col;
     });
 
-    const toColumn = COLUMNS.includes(overId as any) ? overId : (() => {
-      let found = '';
-      Object.entries(columns).forEach(([col, tasks]) => {
-        if (tasks.some((t) => t._id === overId)) found = col;
-      });
-      return found;
-    })();
+    const toColumn = COLUMNS.includes(overId as any)
+      ? overId
+      : (() => {
+          let found = '';
+          Object.entries(columns).forEach(([col, tasks]) => {
+            if (tasks.some((t) => t._id === overId)) found = col;
+          });
+          return found;
+        })();
 
     if (!fromColumn || !toColumn) return;
 
@@ -78,11 +103,15 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
   };
 
   return (
-    <>
+    <div className="w-full max-w-full min-w-0">
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 touch-pan-x scrollbar-thin">
           {COLUMNS.map((col) => (
-            <SortableContext key={col} items={(columns[col] || []).map((t) => t._id)} strategy={verticalListSortingStrategy}>
+            <SortableContext
+              key={col}
+              items={(columns[col] || []).map((t) => t._id)}
+              strategy={verticalListSortingStrategy}
+            >
               <BoardColumn
                 id={col}
                 title={COLUMN_LABELS[col]}
@@ -101,6 +130,6 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
           onClose={() => setActiveTaskModal(null)}
         />
       )}
-    </>
+    </div>
   );
 }

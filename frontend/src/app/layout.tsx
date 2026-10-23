@@ -6,9 +6,20 @@ import { Providers } from '@/components/layout/Providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'DevCollab — Collaborative Code Review',
-  description: 'Real-time code review, project management, and team collaboration for developers.',
-  keywords: 'code review, collaboration, kanban, developer tools',
+  title: {
+    default: 'DevCollab — Real-Time Code Review & Team Collaboration',
+    template: '%s | DevCollab',
+  },
+  description: 'Real-time collaborative code review platform featuring inline syntax discussions, interactive Kanban project management, and developer notifications.',
+  keywords: 'code review, developer collaboration, kanban board, pull request review, dev tools',
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/icon.svg',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -18,6 +18,8 @@ const uploadRoutes = require('./routes/upload.routes');
 
 const app = express();
 
+app.set('trust proxy', 1);
+
 app.use(helmet());
 
 app.use(cors({
@@ -29,7 +31,7 @@ app.use(cors({
 
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || 100,
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || (process.env.NODE_ENV === 'development' ? 1000 : 100),
   message: { success: false, message: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -38,8 +40,14 @@ app.use('/api/', limiter);
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX, 10) || (process.env.NODE_ENV === 'development' ? 500 : 30),
   message: { success: false, message: 'Too many auth attempts, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    const openPaths = ['/refresh', '/me', '/logout'];
+    return openPaths.some((p) => req.path.endsWith(p));
+  },
 });
 app.use('/api/v1/auth/', authLimiter);
 

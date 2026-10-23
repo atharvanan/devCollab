@@ -1,12 +1,11 @@
 'use client';
-import Link from 'next/navigation';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, FolderKanban, GitPullRequest, Bell, Settings, LogOut, Code2, ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/hooks/useRedux';
 import { logoutUser } from '@/store/slices/authSlice';
 import { uiActions } from '@/store/slices/uiSlice';
-import NextLink from 'next/link';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -24,36 +23,55 @@ export function Sidebar() {
   const unreadCount = useAppSelector((s) => s.notifications.unreadCount);
 
   return (
-    <aside className={cn(
-      'fixed left-0 top-0 h-full bg-card border-r border-border flex flex-col transition-all duration-200 z-40',
-      sidebarOpen ? 'w-60' : 'w-16'
-    )}>
-      <div className="flex items-center gap-3 px-4 py-5 border-b border-border">
-        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shrink-0">
+    <aside
+      className={cn(
+        'hidden md:flex fixed left-0 top-0 h-full bg-card border-r border-border flex-col transition-all duration-200 z-40',
+        sidebarOpen ? 'w-60' : 'w-16'
+      )}
+    >
+      {/* Clickable Brand Logo */}
+      <Link
+        href="/dashboard"
+        className="flex items-center gap-3 px-4 py-5 border-b border-border group hover:bg-accent/40 transition-colors"
+        title="Go to DevCollab Dashboard"
+      >
+        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
           <Code2 className="w-4 h-4 text-white" />
         </div>
-        {sidebarOpen && <span className="font-semibold text-lg">DevCollab</span>}
-      </div>
+        {sidebarOpen && (
+          <span className="font-semibold text-lg tracking-tight text-foreground">DevCollab</span>
+        )}
+      </Link>
 
       <nav className="flex-1 py-4 space-y-1 px-2">
         {navItems.map(({ href, label, icon: Icon }) => {
           const active = pathname.startsWith(href);
           return (
-            <NextLink key={href} href={href} className={cn(
-              'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors relative',
-              active ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-            )}>
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors relative',
+                active
+                  ? 'bg-primary/10 text-primary font-semibold'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+              )}
+            >
               <Icon className="w-5 h-5 shrink-0" />
               {sidebarOpen && <span>{label}</span>}
               {label === 'Notifications' && unreadCount > 0 && (
-                <span className={cn(
-                  'absolute bg-primary text-white text-xs rounded-full font-bold',
-                  sidebarOpen ? 'right-3 top-2 px-1.5 py-0.5' : 'top-1 right-1 w-4 h-4 flex items-center justify-center'
-                )}>
+                <span
+                  className={cn(
+                    'absolute bg-primary text-white text-xs rounded-full font-bold',
+                    sidebarOpen
+                      ? 'right-3 top-2 px-1.5 py-0.5'
+                      : 'top-1 right-1 w-4 h-4 flex items-center justify-center'
+                  )}
+                >
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
-            </NextLink>
+            </Link>
           );
         })}
       </nav>
@@ -62,18 +80,30 @@ export function Sidebar() {
         {sidebarOpen && user && (
           <div className="flex items-center gap-2 px-2 py-1">
             {user.avatar ? (
-              <img src={user.avatar} alt={user.name} className="w-7 h-7 rounded-full object-cover" />
+              <img
+                src={user.avatar}
+                alt={user.name}
+                className="w-7 h-7 rounded-full object-cover border border-border"
+              />
             ) : (
-              <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
-                {user.name[0]}
+              <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary border border-primary/30">
+                {user.name?.[0]?.toUpperCase() || 'U'}
               </div>
             )}
-            <div className="min-w-0">
-              <p className="text-sm font-medium truncate">{user.name}</p>
-              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium truncate text-foreground">{user.name}</p>
+              {/* Clickable email */}
+              <a
+                href={`mailto:${user.email}`}
+                className="text-xs text-muted-foreground hover:text-primary transition-colors truncate block"
+                title={`Send email to ${user.email}`}
+              >
+                {user.email}
+              </a>
             </div>
           </div>
         )}
+
         <button
           onClick={() => dispatch(logoutUser())}
           className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
@@ -81,9 +111,11 @@ export function Sidebar() {
           <LogOut className="w-5 h-5 shrink-0" />
           {sidebarOpen && <span>Logout</span>}
         </button>
+
         <button
           onClick={() => dispatch(uiActions.toggleSidebar())}
           className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-accent transition-colors"
+          aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
         >
           <ChevronLeft className={cn('w-5 h-5 shrink-0 transition-transform', !sidebarOpen && 'rotate-180')} />
           {sidebarOpen && <span>Collapse</span>}

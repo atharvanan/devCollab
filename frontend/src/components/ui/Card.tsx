@@ -23,11 +23,11 @@ export const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes
 );
 CardContent.displayName = 'CardContent';
 
-export function Badge({ className, variant = 'default', ...props }: React.HTMLAttributes<HTMLDivElement> & { variant?: 'default' | 'outline' }) {
+export function Badge({ className, variant = 'default', ...props }: React.HTMLAttributes<HTMLDivElement> & { variant?: 'default' | 'outline' | 'secondary' }) {
   return (
     <div className={cn(
       'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold',
-      variant === 'default' ? 'bg-secondary text-secondary-foreground' : 'border border-border',
+      variant === 'outline' ? 'border border-border' : 'bg-secondary text-secondary-foreground',
       className
     )} {...props} />
   );

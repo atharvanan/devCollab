@@ -9,8 +9,8 @@ export const apiClient = axios.create({
 });
 
 let getAccessToken: () => string | null = () => null;
-let onTokenRefreshed: (token: string) => void = () => {};
-let onAuthCleared: () => void = () => {};
+let onTokenRefreshed: (token: string) => void = () => { };
+let onAuthCleared: () => void = () => { };
 
 export const registerAuthHooks = (hooks: {
   getAccessToken: () => string | null;
@@ -39,12 +39,22 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
+// These auth routes handle their own errors — never trigger token refresh for them
+const AUTH_BYPASS_ROUTES = ['/auth/login', '/auth/register', '/auth/verify-otp', '/auth/resend-otp'];
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const requestUrl: string = originalRequest?.url || '';
+    const isAuthRoute = AUTH_BYPASS_ROUTES.some((route) => requestUrl.includes(route));
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !originalRequest.url?.includes('/auth/refresh') &&
+      !isAuthRoute
+    ) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -58,16 +68,28 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const res = await axios.post(`${BASE_URL}/auth/refresh`, {}, { withCredentials: true });
+        const res = await axios.post(
+          `${BASE_URL}/auth/refresh`,
+          {},
+          { withCredentials: true }
+        );
+
         const newToken = res.data.data.accessToken;
+
         onTokenRefreshed(newToken);
         processQueue(null, newToken);
+
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
+
         return apiClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
         onAuthCleared();
-        if (typeof window !== 'undefined') window.location.href = '/login';
+
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
+
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

@@ -33,7 +33,17 @@ export const loginUser = createAsyncThunk('auth/login', async (credentials: { em
     const res = await apiClient.post('/auth/login', credentials);
     return res.data.data;
   } catch (err: any) {
-    return rejectWithValue(err.response?.data?.message || 'Login failed');
+    const data = err.response?.data;
+    if (data?.isUnverified) {
+      return rejectWithValue({
+        message: data.message || 'Please verify your email before logging in.',
+        isUnverified: true,
+        userId: data.data?.userId,
+        email: data.data?.email || credentials.email,
+        devOtp: data.data?.devOtp,
+      });
+    }
+    return rejectWithValue(data?.message || 'Login failed');
   }
 });
 
@@ -76,6 +86,11 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
+    setCredentials(state, action: PayloadAction<{ user: User; accessToken: string }>) {
+      state.user = action.payload.user;
+      state.accessToken = action.payload.accessToken;
+      state.initialized = true;
+    },
     setAccessToken(state, action: PayloadAction<string>) {
       state.accessToken = action.payload;
     },
@@ -99,10 +114,13 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = action.payload.user;
         state.accessToken = action.payload.accessToken;
+        state.initialized = true;
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload as string;
+        state.error = typeof action.payload === 'string'
+          ? action.payload
+          : (action.payload as any)?.message || 'Login failed';
       })
       .addCase(registerUser.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(registerUser.fulfilled, (state) => { state.loading = false; })
@@ -126,5 +144,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { setAccessToken, clearAuth, setInitialized, updateUser } = authSlice.actions;
+export const { setCredentials, setAccessToken, clearAuth, setInitialized, updateUser } = authSlice.actions;
 export default authSlice.reducer;

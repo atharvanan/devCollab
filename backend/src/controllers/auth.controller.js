@@ -16,27 +16,61 @@ const generateOTP = () => crypto.randomInt(100000, 999999).toString();
 exports.register = catchAsync(async (req, res) => {
   const { name, email, password } = req.body;
 
-  const existing = await User.findOne({ email });
-  if (existing) throw new AppError('Email already registered', 400);
+  let user = await User.findOne({ email });
+  if (user) {
+    if (user.isVerified) {
+      throw new AppError('Email already registered', 400);
+    }
+
+    // Account exists but was never verified -> Refresh credentials and OTP
+    const otp = generateOTP();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+    user.name = name || user.name;
+    user.password = password;
+    user.otp = otp;
+    user.otpExpires = otpExpires;
+    await user.save();
+
+    await sendOTPEmail(email, otp, user.name).catch(() => {});
+
+    const isDev = process.env.NODE_ENV !== 'production';
+
+    return res.status(200).json({
+      success: true,
+      message: 'Account pending verification. A fresh OTP has been sent to your email.',
+      data: {
+        userId: user._id,
+        email: user.email,
+        ...(isDev && { devOtp: otp }),
+      },
+    });
+  }
 
   const otp = generateOTP();
   const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
-  const user = await User.create({ name, email, password, otp, otpExpires });
+  user = await User.create({ name, email, password, otp, otpExpires });
 
   await sendOTPEmail(email, otp, name).catch(() => {});
+
+  const isDev = process.env.NODE_ENV !== 'production';
 
   res.status(201).json({
     success: true,
     message: 'Registration successful. Check your email for the OTP.',
-    data: { userId: user._id },
+    data: {
+      userId: user._id,
+      email: user.email,
+      ...(isDev && { devOtp: otp }),
+    },
   });
 });
 
 exports.verifyOTP = catchAsync(async (req, res) => {
-  const { userId, otp } = req.body;
+  const { userId, email, otp } = req.body;
 
-  const user = await User.findById(userId).select('+otp +otpExpires');
+  const query = userId ? { _id: userId } : { email };
+  const user = await User.findOne(query).select('+otp +otpExpires');
   if (!user) throw new AppError('User not found', 404);
   if (user.isVerified) throw new AppError('Account already verified', 400);
   if (!user.otp || user.otp !== otp) throw new AppError('Invalid OTP', 400);
@@ -57,8 +91,9 @@ exports.verifyOTP = catchAsync(async (req, res) => {
 });
 
 exports.resendOTP = catchAsync(async (req, res) => {
-  const { userId } = req.body;
-  const user = await User.findById(userId).select('+otp +otpExpires');
+  const { userId, email } = req.body;
+  const query = userId ? { _id: userId } : { email };
+  const user = await User.findOne(query).select('+otp +otpExpires');
   if (!user) throw new AppError('User not found', 404);
   if (user.isVerified) throw new AppError('Already verified', 400);
 
@@ -68,7 +103,16 @@ exports.resendOTP = catchAsync(async (req, res) => {
   await user.save();
 
   await sendOTPEmail(user.email, otp, user.name).catch(() => {});
-  res.json({ success: true, message: 'OTP resent to your email.' });
+  const isDev = process.env.NODE_ENV !== 'production';
+  res.json({
+    success: true,
+    message: 'OTP resent to your email.',
+    data: {
+      userId: user._id,
+      email: user.email,
+      ...(isDev && { devOtp: otp }),
+    },
+  });
 });
 
 exports.login = catchAsync(async (req, res) => {
@@ -79,7 +123,25 @@ exports.login = catchAsync(async (req, res) => {
     throw new AppError('Invalid email or password', 401);
   }
   if (!user.isVerified) {
-    throw new AppError('Please verify your email before logging in.', 403);
+    const otp = generateOTP();
+    user.otp = otp;
+    user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    await sendOTPEmail(user.email, otp, user.name).catch(() => {});
+
+    const isDev = process.env.NODE_ENV !== 'production';
+
+    return res.status(403).json({
+      success: false,
+      isUnverified: true,
+      message: 'Please verify your email before logging in. A new OTP has been sent.',
+      data: {
+        userId: user._id,
+        email: user.email,
+        ...(isDev && { devOtp: otp }),
+      },
+    });
   }
 
   const accessToken = generateAccessToken(user._id);

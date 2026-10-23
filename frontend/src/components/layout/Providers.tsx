@@ -54,14 +54,18 @@ function AppInit({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+import { ToastProvider } from '@/components/ui/Toast';
+
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>
-        <AppInit>
-          <GlobalNotificationSync />
-          {children}
-        </AppInit>
+        <ToastProvider>
+          <AppInit>
+            <GlobalNotificationSync />
+            {children}
+          </AppInit>
+        </ToastProvider>
       </QueryClientProvider>
     </Provider>
   );

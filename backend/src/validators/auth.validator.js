@@ -12,10 +12,12 @@ exports.loginSchema = Joi.object({
 });
 
 exports.otpSchema = Joi.object({
-  userId: Joi.string().required(),
+  userId: Joi.string().optional(),
+  email: Joi.string().email().optional(),
   otp: Joi.string().length(6).pattern(/^\d+$/).required(),
-});
+}).or('userId', 'email');
 
 exports.resendOTPSchema = Joi.object({
-  userId: Joi.string().required(),
-});
+  userId: Joi.string().optional(),
+  email: Joi.string().email().optional(),
+}).or('userId', 'email');

@@ -5,6 +5,7 @@ const { connectDB } = require('./config/database');
 const { initSocket } = require('./socket');
 const logger = require('./utils/logger');
 const { validateEnv } = require('./config/validateEnv');
+const { verifySMTPConnection } = require('./services/email.service');
 
 validateEnv();
 
@@ -17,8 +18,10 @@ initSocket(server);
 const start = async () => {
   try {
     await connectDB();
-    server.listen(PORT, () => {
+    server.listen(PORT, async () => {
       logger.info(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+      // Verify SMTP on startup so misconfiguration is immediately visible in logs
+      await verifySMTPConnection();
     });
   } catch (err) {
     logger.error('Failed to start server:', err);

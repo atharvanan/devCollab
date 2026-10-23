@@ -40,6 +40,7 @@ services:
     env_file:
       - ./backend/.env
     environment:
+      - NODE_ENV=development
       - MONGODB_URI=mongodb://mongodb:27017/devcollab
       - REDIS_URL=redis://redis:6379
     depends_on:

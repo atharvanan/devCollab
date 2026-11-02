@@ -10,12 +10,13 @@ import {
   LogOut,
   Code2,
   ChevronLeft,
-  Sparkles,
+  KeyRound,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/hooks/useRedux';
 import { logoutUser } from '@/store/slices/authSlice';
 import { uiActions } from '@/store/slices/uiSlice';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -35,24 +36,29 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        'hidden md:flex fixed left-0 top-0 h-full bg-card/95 backdrop-blur-md border-r border-border/80 flex-col transition-all duration-200 z-40 shadow-xs',
+        'hidden md:flex fixed left-0 top-0 h-full bg-card/95 backdrop-blur-md border-r border-border flex-col transition-all duration-200 z-40 shadow-xs',
         sidebarOpen ? 'w-60' : 'w-16'
       )}
     >
-      {/* Brand Header */}
+      {/* Polished, Spacious Brand Header */}
       <Link
         href="/dashboard"
-        className="flex items-center gap-3 px-4 py-4.5 border-b border-border/70 group hover:bg-accent/40 transition-colors"
-        title="Go to DevCollab Dashboard"
+        className={cn(
+          'flex items-center gap-3.5 px-4 py-5 border-b border-border/70 group hover:bg-accent/30 transition-colors',
+          !sidebarOpen && 'justify-center px-2'
+        )}
+        title="DevCollab Workspace"
       >
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary to-indigo-500 flex items-center justify-center shrink-0 shadow-sm shadow-primary/30 group-hover:scale-105 transition-transform">
-          <Code2 className="w-4 h-4 text-white" />
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-700 dark:from-indigo-500 dark:to-indigo-600 flex items-center justify-center shrink-0 shadow-sm shadow-indigo-500/25 group-hover:scale-105 transition-transform">
+          <Code2 className="w-5 h-5 text-white" />
         </div>
         {sidebarOpen && (
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="font-bold text-base tracking-tight text-foreground">DevCollab</span>
-            <span className="text-[10px] font-mono uppercase px-1.5 py-0.2 rounded bg-primary/10 text-primary border border-primary/20 font-semibold">
-              Live
+          <div className="min-w-0">
+            <span className="font-bold text-base tracking-tight text-foreground block leading-none">
+              DevCollab
+            </span>
+            <span className="text-[11px] text-muted-foreground font-medium block mt-1">
+              Engineering Workspace
             </span>
           </div>
         )}
@@ -67,16 +73,21 @@ export function Sidebar() {
               key={href}
               href={href}
               className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all relative group',
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all relative group',
                 active
                   ? 'bg-primary/10 text-primary font-semibold shadow-2xs'
-                  : 'text-muted-foreground hover:bg-accent/70 hover:text-foreground'
+                  : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
               )}
             >
               {active && (
-                <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-primary rounded-r-full" />
+                <span className="absolute left-0 top-2 bottom-2 w-1 bg-primary rounded-r-full" />
               )}
-              <Icon className={cn('w-4.5 h-4.5 shrink-0 transition-transform group-hover:scale-105', active ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground')} />
+              <Icon
+                className={cn(
+                  'w-4.5 h-4.5 shrink-0 transition-transform group-hover:scale-105',
+                  active ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+                )}
+              />
               {sidebarOpen && <span className="truncate">{label}</span>}
               {label === 'Notifications' && unreadCount > 0 && (
                 <span
@@ -96,7 +107,13 @@ export function Sidebar() {
       </nav>
 
       {/* User Section & Toggles */}
-      <div className="border-t border-border/70 p-3 space-y-2 bg-accent/10">
+      <div className="border-t border-border/70 p-3 space-y-2 bg-accent/5">
+        {/* Dark Mode Switcher */}
+        <div className={cn('flex items-center', sidebarOpen ? 'justify-between px-1' : 'justify-center')}>
+          <ThemeToggle showLabel={sidebarOpen} className={sidebarOpen ? 'w-full justify-start' : ''} />
+        </div>
+
+        {/* User Card */}
         {sidebarOpen && user && (
           <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg bg-card/60 border border-border/40">
             <div className="relative shrink-0">
@@ -111,8 +128,7 @@ export function Sidebar() {
                   {user.name?.[0]?.toUpperCase() || 'U'}
                 </div>
               )}
-              {/* Online indicator */}
-              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-card" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-card" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold truncate text-foreground leading-tight">{user.name}</p>

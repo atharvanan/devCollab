@@ -23,10 +23,18 @@ export default function DashboardPage() {
     return res.data.data;
   });
 
-  const { data: openReviewsData } = useQuery('open-reviews-count', async () => {
-    const res = await apiClient.get('/reviews?status=open&limit=1');
-    return res.data.data.total as number;
-  });
+  const { data: openReviewsData } = useQuery(
+    'open-reviews-count',
+    async () => {
+      try {
+        const res = await apiClient.get('/reviews?status=open&limit=1');
+        return (res.data?.data?.total ?? res.data?.data?.reviews?.length ?? 0) as number;
+      } catch {
+        return 0;
+      }
+    },
+    { refetchInterval: 5000 }
+  );
 
   return (
     <DashboardLayout>
@@ -50,57 +58,76 @@ export default function DashboardPage() {
 
         {/* Quick Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="hover:border-primary/40 transition-colors">
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <FolderKanban className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold tracking-tight">
-                  {projectsData?.pagination?.total ?? (loadingProjects ? '...' : 0)}
-                </p>
-                <p className="text-xs font-medium text-muted-foreground">Active Projects</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="hover:border-emerald-500/40 transition-colors">
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
-                <GitPullRequest className="w-6 h-6 text-emerald-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold tracking-tight">
-                  {openReviewsData ?? 0}
-                </p>
-                <p className="text-xs font-medium text-muted-foreground">Open Reviews</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="hover:border-sky-500/40 transition-colors">
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-sky-500/10 flex items-center justify-center shrink-0">
-                <Code2 className="w-6 h-6 text-sky-500" />
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <p className="text-2xl font-bold tracking-tight">Live</p>
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-live" />
+          <Link href="/projects" className="block group">
+            <Card className="hover:border-primary/50 transition-all h-full group-hover:shadow-sm">
+              <CardContent className="p-5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <FolderKanban className="w-6 h-6 text-primary" />
                 </div>
-                <p className="text-xs font-medium text-muted-foreground">Pair-Coding Rooms</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="hover:border-amber-500/40 transition-colors">
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
-                <Bell className="w-6 h-6 text-amber-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold tracking-tight">{unreadCount ?? 0}</p>
-                <p className="text-xs font-medium text-muted-foreground">Unread Alerts</p>
-              </div>
-            </CardContent>
-          </Card>
+                <div>
+                  <p className="text-2xl font-bold tracking-tight">
+                    {projectsData?.pagination?.total ?? (loadingProjects ? '...' : 0)}
+                  </p>
+                  <p className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                    Active Projects
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/reviews" className="block group">
+            <Card className="hover:border-emerald-500/50 transition-all h-full group-hover:shadow-sm">
+              <CardContent className="p-5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <GitPullRequest className="w-6 h-6 text-emerald-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold tracking-tight text-foreground">
+                    {openReviewsData ?? 0}
+                  </p>
+                  <p className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                    Open Reviews
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/projects" className="block group">
+            <Card className="hover:border-sky-500/50 transition-all h-full group-hover:shadow-sm">
+              <CardContent className="p-5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-sky-500/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <Code2 className="w-6 h-6 text-sky-500" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-2xl font-bold tracking-tight">Live</p>
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-live" />
+                  </div>
+                  <p className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                    Pair-Coding Rooms
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/notifications" className="block group">
+            <Card className="hover:border-amber-500/50 transition-all h-full group-hover:shadow-sm">
+              <CardContent className="p-5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <Bell className="w-6 h-6 text-amber-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold tracking-tight">{unreadCount ?? 0}</p>
+                  <p className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                    Unread Alerts
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
 
         {/* Recent Projects Section */}

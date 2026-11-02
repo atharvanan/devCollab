@@ -15,6 +15,13 @@ describe('boardSlice', () => {
     expect(state.columns.todo[0].title).toBe('New Task');
   });
 
+  it('safely deduplicates when adding the same task multiple times', () => {
+    let state = boardReducer(initialState, boardActions.addTask({ _id: '1', title: 'Task 1', column: 'todo' }));
+    state = boardReducer(state, boardActions.addTask({ _id: '1', title: 'Task 1 (duplicate socket event)', column: 'todo' }));
+    expect(state.columns.todo).toHaveLength(1);
+    expect(state.columns.todo[0]._id).toBe('1');
+  });
+
   it('moves a task between columns', () => {
     const stateWithTask = {
       columns: { backlog: [{ _id: '1', title: 'Task 1', column: 'backlog' }], todo: [] },

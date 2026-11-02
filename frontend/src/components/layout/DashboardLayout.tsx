@@ -2,7 +2,6 @@
 import { useAppSelector } from '@/hooks/useRedux';
 import { Sidebar } from './Sidebar';
 import { MobileNav } from './MobileNav';
-import { Footer } from './Footer';
 import { cn } from '@/lib/utils';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -26,9 +25,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         <div className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto min-w-0">
           {children}
         </div>
-
-        {/* Global Footer */}
-        <Footer />
       </main>
     </div>
   );

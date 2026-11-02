@@ -49,7 +49,7 @@ exports.getReviews = catchAsync(async (req, res) => {
 
   if (projectId) {
     query.project = projectId;
-  } else {
+  } else if (req.user?.role !== 'admin') {
     const Project = require('../models/Project');
     const projects = await Project.find({
       $or: [
@@ -57,10 +57,19 @@ exports.getReviews = catchAsync(async (req, res) => {
         { 'members.user': req.user._id },
       ],
     }).select('_id');
-    query.project = { $in: projects.map((p) => p._id) };
+    const projectIds = projects.map((p) => p._id);
+    query.$or = [
+      { project: { $in: projectIds } },
+      { author: req.user._id },
+      { reviewers: req.user._id },
+    ];
   }
 
-  if (status) query.status = status;
+  if (status === 'open') {
+    query.status = { $in: ['open', 'in_review', 'changes_requested'] };
+  } else if (status) {
+    query.status = status;
+  }
 
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const [reviews, total] = await Promise.all([
@@ -147,6 +156,7 @@ exports.updateStatus = catchAsync(async (req, res) => {
   review.status = status;
   await review.save();
   getIO().to(`review:${review._id}`).emit('review:statusChanged', { status });
+  getIO().to(`project:${review.project}`).emit('review:statusChanged', { reviewId: review._id, status });
 
   if (review.author.toString() !== req.user._id.toString()) {
     const typeMap = { approved: 'review_approved', changes_requested: 'review_changes_requested' };

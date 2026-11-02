@@ -10,12 +10,48 @@ const boardSlice = createSlice({
   initialState: { columns: {}, loading: false } as BoardState,
   reducers: {
     setBoard(state, action: PayloadAction<{ [key: string]: any[] }>) {
-      state.columns = action.payload;
+      const board = action.payload || {};
+      const cleanColumns: { [key: string]: any[] } = {};
+      const seenIds = new Set<string>();
+
+      Object.entries(board).forEach(([col, tasks]) => {
+        cleanColumns[col] = [];
+        (tasks || []).forEach((t: any) => {
+          if (t && t._id && !seenIds.has(t._id)) {
+            seenIds.add(t._id);
+            cleanColumns[col].push(t);
+          }
+        });
+      });
+
+      state.columns = cleanColumns;
     },
     addTask(state, action: PayloadAction<any>) {
-      const col = action.payload.column || 'backlog';
+      const task = action.payload;
+      if (!task || !task._id) return;
+
+      // Deduplicate: check if this task is already in any column
+      const existingCol = Object.keys(state.columns).find((c) =>
+        state.columns[c]?.some((t: any) => t._id === task._id)
+      );
+
+      if (existingCol) {
+        if (existingCol !== task.column) {
+          state.columns[existingCol] = state.columns[existingCol].filter(
+            (t: any) => t._id !== task._id
+          );
+        } else {
+          const idx = state.columns[existingCol].findIndex((t: any) => t._id === task._id);
+          if (idx !== -1) {
+            state.columns[existingCol][idx] = { ...state.columns[existingCol][idx], ...task };
+          }
+          return;
+        }
+      }
+
+      const col = task.column || 'backlog';
       if (!state.columns[col]) state.columns[col] = [];
-      state.columns[col].push(action.payload);
+      state.columns[col].push(task);
     },
     moveTask(state, action: PayloadAction<{ taskId: string; from: string; to: string; order: number }>) {
       const { taskId, from, to, order } = action.payload;

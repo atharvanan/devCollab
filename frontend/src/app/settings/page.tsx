@@ -1,26 +1,51 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { useMutation } from 'react-query';
-import { Camera, Check, AlertCircle, Mail, Github, User } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import {
+  Camera,
+  Mail,
+  Github,
+  User,
+  Lock,
+  KeyRound,
+  Eye,
+  EyeOff,
+  ShieldCheck,
+  ArrowRight,
+  RotateCcw,
+} from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Avatar } from '@/components/ui/Card';
+import { Avatar, Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { apiClient } from '@/lib/apiClient';
 import { useAppSelector, useAppDispatch } from '@/hooks/useRedux';
 import { updateUser } from '@/store/slices/authSlice';
 import { useToast } from '@/components/ui/Toast';
 
 export default function SettingsPage() {
+  const router = useRouter();
   const dispatch = useAppDispatch();
   const { toast } = useToast();
   const { user } = useAppSelector((s) => s.auth);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Profile form state
   const [name, setName] = useState(user?.name || '');
   const [bio, setBio] = useState(user?.bio || '');
   const [github, setGithub] = useState(user?.github || '');
   const [avatar, setAvatar] = useState(user?.avatar || '');
+
+  // Password form state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [resetCodeLoading, setResetCodeLoading] = useState(false);
 
   useEffect(() => {
     document.title = 'Account Settings | DevCollab';
@@ -37,7 +62,11 @@ export default function SettingsPage() {
 
   const updateProfile = useMutation(
     async () => {
-      await apiClient.patch('/users/profile', { name: name.trim(), bio: bio.trim(), github: github.trim() });
+      await apiClient.patch('/users/profile', {
+        name: name.trim(),
+        bio: bio.trim(),
+        github: github.trim(),
+      });
     },
     {
       onSuccess: () => {
@@ -73,13 +102,68 @@ export default function SettingsPage() {
     }
   );
 
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 8) {
+      toast.error('New password must be at least 8 characters long');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      await apiClient.patch('/users/password', {
+        currentPassword: currentPassword.trim(),
+        newPassword: newPassword.trim(),
+      });
+      toast.success('Your password has been changed successfully!');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Failed to change password. Please check your current password.';
+      toast.error(msg);
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const handleSendResetCode = async () => {
+    if (!user?.email) {
+      toast.error('No email address associated with your account.');
+      return;
+    }
+
+    setResetCodeLoading(true);
+    try {
+      const res = await apiClient.post('/auth/forgot-password', { email: user.email });
+      const devOtp = res.data?.data?.devOtp;
+      toast.success('Password reset verification code sent to your email!');
+
+      const params = new URLSearchParams({ email: user.email });
+      if (devOtp) params.set('devOtp', devOtp);
+
+      setTimeout(() => {
+        router.push(`/reset-password?${params.toString()}`);
+      }, 800);
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Failed to send reset code.';
+      toast.error(msg);
+    } finally {
+      setResetCodeLoading(false);
+    }
+  };
+
   return (
     <DashboardLayout>
-      <div className="max-w-xl space-y-6">
+      <div className="max-w-2xl space-y-8">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Account Settings</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Account & Security</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Manage your personal profile, bio, and developer presence.
+            Manage your personal profile, developer presence, and account security.
           </p>
         </div>
 
@@ -109,7 +193,6 @@ export default function SettingsPage() {
 
           <div className="text-center sm:text-left min-w-0 flex-1 space-y-1">
             <p className="text-base font-semibold text-foreground truncate">{name || user?.name}</p>
-            {/* Clickable email */}
             {user?.email && (
               <a
                 href={`mailto:${user.email}`}
@@ -126,8 +209,12 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Settings Form */}
-        <div className="space-y-4">
+        {/* Profile Settings Form */}
+        <div className="p-5 sm:p-6 rounded-xl border border-border bg-card space-y-4">
+          <h2 className="text-base font-semibold text-foreground border-b border-border pb-3">
+            Public Profile
+          </h2>
+
           <div>
             <label className="text-sm font-medium mb-1.5 block">Full Name</label>
             <Input
@@ -166,8 +253,122 @@ export default function SettingsPage() {
             onClick={() => updateProfile.mutate()}
             className="w-full sm:w-auto"
           >
-            Save Changes
+            Save Profile Changes
           </Button>
+        </div>
+
+        {/* Security & Password Reset Section */}
+        <div className="p-5 sm:p-6 rounded-xl border border-border bg-card space-y-5">
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <div>
+              <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                <KeyRound className="w-4 h-4 text-primary" /> Security & Password
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Update your account password or request a reset code if you forgot it.
+              </p>
+            </div>
+          </div>
+
+          {/* Direct Password Change Form */}
+          <form onSubmit={handleUpdatePassword} className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Current Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  type={showCurrentPassword ? 'text' : 'password'}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Enter current password"
+                  className="pl-10 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
+                  tabIndex={-1}
+                >
+                  {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">New Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    type={showNewPassword ? 'text' : 'password'}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Min. 8 characters"
+                    className="pl-10 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
+                    tabIndex={-1}
+                  >
+                    {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Confirm New Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Repeat new password"
+                    className="pl-10 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
+                    tabIndex={-1}
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              loading={passwordLoading}
+              disabled={!newPassword || !confirmPassword}
+              className="w-full sm:w-auto"
+            >
+              <ShieldCheck className="w-4 h-4 mr-1.5" /> Update Password
+            </Button>
+          </form>
+
+          {/* Forgot Password Section / Reset Code */}
+          <div className="pt-4 border-t border-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-muted/30 p-4 rounded-xl">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Forgot your existing password?</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Send a 6-digit verification code to <span className="font-medium text-foreground">{user?.email}</span> to reset your credentials.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              loading={resetCodeLoading}
+              onClick={handleSendResetCode}
+              className="shrink-0"
+            >
+              <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Send Reset Code
+            </Button>
+          </div>
         </div>
       </div>
     </DashboardLayout>

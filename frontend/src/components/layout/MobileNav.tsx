@@ -18,6 +18,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/hooks/useRedux';
 import { logoutUser } from '@/store/slices/authSlice';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -77,7 +78,9 @@ export function MobileNav() {
         </div>
 
         {/* Right side mobile icons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <ThemeToggle />
+
           <Link
             href="/notifications"
             className="p-2 relative rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"

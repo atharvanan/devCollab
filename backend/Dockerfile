@@ -2,12 +2,21 @@ FROM node:20-alpine AS base
 
 WORKDIR /app
 
-# Install dependencies only when needed
+# Development stage (used by docker-compose for live reload with nodemon)
+FROM base AS dev
+ENV NODE_ENV=development
+COPY package.json package-lock.json* ./
+RUN npm ci
+COPY . .
+EXPOSE 5000
+CMD ["npm", "run", "dev"]
+
+# Dependencies for production
 FROM base AS deps
 COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev
 
-# Build / production image
+# Production runner image
 FROM base AS runner
 ENV NODE_ENV=production
 

@@ -21,3 +21,13 @@ exports.resendOTPSchema = Joi.object({
   userId: Joi.string().optional(),
   email: Joi.string().email().optional(),
 }).or('userId', 'email');
+
+exports.forgotPasswordSchema = Joi.object({
+  email: Joi.string().email().required(),
+});
+
+exports.resetPasswordSchema = Joi.object({
+  email: Joi.string().email().required(),
+  otp: Joi.string().length(6).pattern(/^\d+$/).required(),
+  password: Joi.string().min(8).max(128).required(),
+});

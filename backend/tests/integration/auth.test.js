@@ -88,6 +88,95 @@ describe('GET /api/v1/auth/me', () => {
   });
 });
 
+describe('POST /api/v1/auth/forgot-password & reset-password', () => {
+  beforeEach(async () => {
+    await User.deleteMany({});
+  });
+
+  it('generates a reset OTP for registered user', async () => {
+    await User.create({
+      name: 'Reset User',
+      email: 'reset@example.com',
+      password: 'OldPassword123',
+      isVerified: true,
+    });
+
+    const res = await request(app).post('/api/v1/auth/forgot-password').send({
+      email: 'reset@example.com',
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+
+    const user = await User.findOne({ email: 'reset@example.com' }).select('+resetPasswordOtp +resetPasswordExpires');
+    expect(user.resetPasswordOtp).toBeDefined();
+    expect(user.resetPasswordExpires.getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it('returns safe response for non-existent email', async () => {
+    const res = await request(app).post('/api/v1/auth/forgot-password').send({
+      email: 'ghost@example.com',
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  it('rejects reset-password with invalid OTP', async () => {
+    await User.create({
+      name: 'Reset User',
+      email: 'reset2@example.com',
+      password: 'OldPassword123',
+      isVerified: true,
+      resetPasswordOtp: '123456',
+      resetPasswordExpires: new Date(Date.now() + 10 * 60 * 1000),
+    });
+
+    const res = await request(app).post('/api/v1/auth/reset-password').send({
+      email: 'reset2@example.com',
+      otp: '999999',
+      password: 'NewPassword123',
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/invalid or incorrect/i);
+  });
+
+  it('resets password successfully and allows login with new password', async () => {
+    const user = await User.create({
+      name: 'Reset User',
+      email: 'reset3@example.com',
+      password: 'OldPassword123',
+      isVerified: true,
+      resetPasswordOtp: '654321',
+      resetPasswordExpires: new Date(Date.now() + 10 * 60 * 1000),
+    });
+
+    const res = await request(app).post('/api/v1/auth/reset-password').send({
+      email: 'reset3@example.com',
+      otp: '654321',
+      password: 'NewSuperPassword123',
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+
+    // Old password should fail
+    const oldLogin = await request(app).post('/api/v1/auth/login').send({
+      email: 'reset3@example.com',
+      password: 'OldPassword123',
+    });
+    expect(oldLogin.status).toBe(401);
+
+    // New password should succeed
+    const newLogin = await request(app).post('/api/v1/auth/login').send({
+      email: 'reset3@example.com',
+      password: 'NewSuperPassword123',
+    });
+    expect(newLogin.status).toBe(200);
+    expect(newLogin.body.data.accessToken).toBeDefined();
+  });
+});
+
 describe('Health check', () => {
   it('returns 200 on /health', async () => {
     const res = await request(app).get('/health');

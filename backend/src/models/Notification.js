@@ -17,6 +17,8 @@ const notificationSchema = new mongoose.Schema(
         'project_invite',
         'mention',
         'security_violation',
+        'review_assigned',
+        'collab_invite',
       ],
       required: true,
     },

@@ -7,7 +7,7 @@ const {
   setRefreshCookie,
   clearRefreshCookie,
 } = require('../utils/jwt');
-const { sendOTPEmail } = require('../services/email.service');
+const { sendOTPEmail, sendPasswordResetEmail } = require('../services/email.service');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 
@@ -200,4 +200,76 @@ exports.logout = catchAsync(async (req, res) => {
 
 exports.getMe = catchAsync(async (req, res) => {
   res.json({ success: true, data: { user: req.user.toPublicJSON() } });
+});
+
+exports.forgotPassword = catchAsync(async (req, res) => {
+  const { email } = req.body;
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    return res.status(200).json({
+      success: true,
+      message: 'If an account exists with this email, a password reset code has been sent.',
+    });
+  }
+
+  const otp = generateOTP();
+  const otpExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+
+  user.resetPasswordOtp = otp;
+  user.resetPasswordExpires = otpExpires;
+  await user.save();
+
+  await sendPasswordResetEmail(user.email, otp, user.name).catch(() => {});
+
+  const isDev = process.env.NODE_ENV !== 'production';
+
+  res.status(200).json({
+    success: true,
+    message: 'If an account exists with this email, a password reset code has been sent.',
+    data: {
+      email: user.email,
+      ...(isDev && { devOtp: otp }),
+    },
+  });
+});
+
+exports.resetPassword = catchAsync(async (req, res) => {
+  const { email, otp, password } = req.body;
+
+  const user = await User.findOne({ email }).select(
+    '+password +resetPasswordOtp +resetPasswordExpires +refreshTokens'
+  );
+
+  if (!user) {
+    throw new AppError('Invalid request or account does not exist', 400);
+  }
+
+  if (!user.resetPasswordOtp || user.resetPasswordOtp !== otp) {
+    throw new AppError('Invalid or incorrect verification code', 400);
+  }
+
+  if (!user.resetPasswordExpires || user.resetPasswordExpires < Date.now()) {
+    throw new AppError('Verification code has expired. Please request a new one.', 400);
+  }
+
+  user.password = password;
+  user.resetPasswordOtp = undefined;
+  user.resetPasswordExpires = undefined;
+  user.resetPasswordToken = undefined;
+  user.refreshTokens = [];
+
+  if (!user.isVerified) {
+    user.isVerified = true;
+    user.otp = undefined;
+    user.otpExpires = undefined;
+  }
+
+  await user.save();
+  clearRefreshCookie(res);
+
+  res.status(200).json({
+    success: true,
+    message: 'Password has been reset successfully. You can now sign in with your new password.',
+  });
 });

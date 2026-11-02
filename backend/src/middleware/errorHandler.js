@@ -43,8 +43,12 @@ const errorHandler = (err, req, res, next) => {
     });
   }
 
+  if (process.env.NODE_ENV === 'test') {
+    console.error('Non-operational test error:', err);
+  }
+
   logger.error('Non-operational error:', err);
-  res.status(500).json({ success: false, message: 'Something went wrong' });
+  res.status(500).json({ success: false, message: err.message || 'Something went wrong' });
 };
 
 const notFound = (req, res) => {

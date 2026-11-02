@@ -12,6 +12,9 @@ const userSchema = new mongoose.Schema(
     isVerified: { type: Boolean, default: false },
     otp: { type: String, select: false },
     otpExpires: { type: Date, select: false },
+    resetPasswordOtp: { type: String, select: false },
+    resetPasswordExpires: { type: Date, select: false },
+    resetPasswordToken: { type: String, select: false },
     refreshTokens: [{ type: String, select: false }],
     bio: { type: String, maxlength: 200, default: '' },
     github: { type: String, default: '' },
@@ -36,6 +39,9 @@ userSchema.methods.toPublicJSON = function () {
   delete obj.password;
   delete obj.otp;
   delete obj.otpExpires;
+  delete obj.resetPasswordOtp;
+  delete obj.resetPasswordExpires;
+  delete obj.resetPasswordToken;
   delete obj.refreshTokens;
   return obj;
 };

@@ -96,3 +96,14 @@ export const DOMAINS: Record<string, string> = {
   qa: 'QA & Testing',
   security: 'Security & Compliance',
 };
+
+export const CONTRIBUTOR_COLORS = [
+  { bg: 'bg-indigo-500', text: 'text-indigo-400', border: 'border-indigo-500/30', light: 'bg-indigo-500/10' },
+  { bg: 'bg-emerald-500', text: 'text-emerald-400', border: 'border-emerald-500/30', light: 'bg-emerald-500/10' },
+  { bg: 'bg-amber-500', text: 'text-amber-400', border: 'border-amber-500/30', light: 'bg-amber-500/10' },
+  { bg: 'bg-sky-500', text: 'text-sky-400', border: 'border-sky-500/30', light: 'bg-sky-500/10' },
+  { bg: 'bg-pink-500', text: 'text-pink-400', border: 'border-pink-500/30', light: 'bg-pink-500/10' },
+  { bg: 'bg-violet-500', text: 'text-violet-400', border: 'border-violet-500/30', light: 'bg-violet-500/10' },
+  { bg: 'bg-teal-500', text: 'text-teal-400', border: 'border-teal-500/30', light: 'bg-teal-500/10' },
+  { bg: 'bg-rose-500', text: 'text-rose-400', border: 'border-rose-500/30', light: 'bg-rose-500/10' },
+];

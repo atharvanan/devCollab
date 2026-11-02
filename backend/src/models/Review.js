@@ -46,10 +46,10 @@ const reviewSchema = new mongoose.Schema(
     reviewers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     attachments: [{ url: String, publicId: String, name: String }],
   },
-  { timestamps: true }
+  { timestamps: true, language_override: 'none' }
 );
 
 reviewSchema.index({ project: 1, createdAt: -1 });
-reviewSchema.index({ title: 'text', description: 'text' });
+reviewSchema.index({ title: 'text', description: 'text' }, { default_language: 'none', language_override: 'none' });
 
 module.exports = mongoose.model('Review', reviewSchema);

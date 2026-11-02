@@ -174,25 +174,26 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
-      <div className="w-full max-w-sm space-y-8">
+    <div className="min-h-screen flex items-center justify-center bg-background bg-grid-subtle px-4 py-8 relative">
+      <div className="w-full max-w-md space-y-6">
         {/* Header */}
         <div className="text-center space-y-3">
           <Link href="/" className="inline-block group transition-transform hover:scale-105">
-            <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center mx-auto shadow-lg">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-primary to-indigo-500 flex items-center justify-center mx-auto shadow-md shadow-primary/20">
               <Code2 className="w-6 h-6 text-white" />
             </div>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Create your account</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Create your account</h1>
             <p className="text-sm text-muted-foreground mt-1">
               Start collaborating with your team today
             </p>
           </div>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        {/* Card Form */}
+        <div className="p-6 sm:p-7 rounded-2xl border border-border/80 bg-card/90 backdrop-blur-md shadow-xl shadow-black/5">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-1.5">
             <label htmlFor="reg-name" className="text-sm font-medium block">
               Full name
@@ -298,6 +299,7 @@ export default function RegisterPage() {
             By creating an account, you agree to our Terms of Service and Privacy Policy.
           </p>
         </form>
+        </div>
 
         <p className="text-center text-sm text-muted-foreground">
           Already have an account?{' '}

@@ -116,25 +116,26 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
-      <div className="w-full max-w-sm space-y-8">
+    <div className="min-h-screen flex items-center justify-center bg-background bg-grid-subtle px-4 py-8 relative">
+      <div className="w-full max-w-md space-y-6">
         {/* Header */}
         <div className="text-center space-y-3">
           <Link href="/" className="inline-block group transition-transform hover:scale-105">
-            <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center mx-auto shadow-lg">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-primary to-indigo-500 flex items-center justify-center mx-auto shadow-md shadow-primary/20">
               <Code2 className="w-6 h-6 text-white" />
             </div>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Welcome back</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Sign in to your DevCollab account
+              Sign in to your DevCollab collaborative workspace
             </p>
           </div>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        {/* Card Form */}
+        <div className="p-6 sm:p-7 rounded-2xl border border-border/80 bg-card/90 backdrop-blur-md shadow-xl shadow-black/5">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-1.5">
             <label htmlFor="login-email" className="text-sm font-medium block">
               Email address
@@ -154,9 +155,17 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="login-password" className="text-sm font-medium block">
-              Password
-            </label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="login-password" className="text-sm font-medium block">
+                Password
+              </label>
+              <Link
+                href="/forgot-password"
+                className="text-xs text-primary hover:underline font-medium transition-colors"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               <Input
@@ -189,6 +198,7 @@ export default function LoginPage() {
             Sign In
           </Button>
         </form>
+        </div>
 
         {/* Footer */}
         <div className="text-center text-sm text-muted-foreground space-y-2">

@@ -66,7 +66,83 @@ const initSocket = (server) => {
       });
     });
 
+    // ==========================================
+    // Real-Time Collaborative Coding Workspace
+    // ==========================================
+    socket.on('collab:join', ({ sessionId }) => {
+      if (!sessionId) return;
+      const room = `collab:${sessionId}`;
+      socket.join(room);
+      socket.collabRoom = sessionId;
+
+      logger.info(`[COLLAB] ${socket.user.name} joined ${room}`);
+
+      // Notify others in the room
+      socket.to(room).emit('collab:userJoined', {
+        user: {
+          _id: socket.user._id,
+          name: socket.user.name,
+          avatar: socket.user.avatar,
+          email: socket.user.email,
+        },
+      });
+    });
+
+    socket.on('collab:leave', ({ sessionId }) => {
+      if (!sessionId) return;
+      const room = `collab:${sessionId}`;
+      socket.leave(room);
+      delete socket.collabRoom;
+      socket.to(room).emit('collab:userLeft', { userId: socket.user._id });
+    });
+
+    socket.on('collab:codeChange', ({ sessionId, code, language, activeLine, delta }) => {
+      if (!sessionId) return;
+      const room = `collab:${sessionId}`;
+      socket.to(room).emit('collab:codeSync', {
+        code,
+        language,
+        activeLine,
+        delta,
+        author: {
+          _id: socket.user._id,
+          name: socket.user.name,
+          avatar: socket.user.avatar,
+        },
+      });
+    });
+
+    socket.on('collab:cursor', ({ sessionId, line, col }) => {
+      if (!sessionId) return;
+      const room = `collab:${sessionId}`;
+      socket.to(room).emit('collab:cursorMoved', {
+        user: {
+          _id: socket.user._id,
+          name: socket.user.name,
+          avatar: socket.user.avatar,
+        },
+        line,
+        col,
+      });
+    });
+
+    socket.on('collab:typing', ({ sessionId, isTyping, line }) => {
+      if (!sessionId) return;
+      const room = `collab:${sessionId}`;
+      socket.to(room).emit('collab:userTyping', {
+        user: {
+          _id: socket.user._id,
+          name: socket.user.name,
+        },
+        isTyping,
+        line,
+      });
+    });
+
     socket.on('disconnect', () => {
+      if (socket.collabRoom) {
+        socket.to(`collab:${socket.collabRoom}`).emit('collab:userLeft', { userId: socket.user._id });
+      }
       logger.info(`Socket disconnected: ${socket.user.name}`);
     });
   });

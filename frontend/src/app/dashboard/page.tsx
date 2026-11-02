@@ -2,7 +2,7 @@
 import { useEffect } from 'react';
 import { useQuery } from 'react-query';
 import Link from 'next/link';
-import { Plus, FolderKanban, GitPullRequest, Bell, ArrowRight } from 'lucide-react';
+import { Plus, FolderKanban, GitPullRequest, Bell, ArrowRight, Code2, Sparkles, Terminal } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -49,8 +49,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Quick Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="hover:border-primary/40 transition-colors">
             <CardContent className="p-5 flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                 <FolderKanban className="w-6 h-6 text-primary" />
@@ -63,10 +63,10 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="hover:border-emerald-500/40 transition-colors">
             <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center shrink-0">
-                <GitPullRequest className="w-6 h-6 text-green-600" />
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
+                <GitPullRequest className="w-6 h-6 text-emerald-500" />
               </div>
               <div>
                 <p className="text-2xl font-bold tracking-tight">
@@ -76,14 +76,28 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="hover:border-sky-500/40 transition-colors">
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-sky-500/10 flex items-center justify-center shrink-0">
+                <Code2 className="w-6 h-6 text-sky-500" />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-2xl font-bold tracking-tight">Live</p>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-live" />
+                </div>
+                <p className="text-xs font-medium text-muted-foreground">Pair-Coding Rooms</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="hover:border-amber-500/40 transition-colors">
             <CardContent className="p-5 flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
-                <Bell className="w-6 h-6 text-amber-600" />
+                <Bell className="w-6 h-6 text-amber-500" />
               </div>
               <div>
                 <p className="text-2xl font-bold tracking-tight">{unreadCount ?? 0}</p>
-                <p className="text-xs font-medium text-muted-foreground">Unread Notifications</p>
+                <p className="text-xs font-medium text-muted-foreground">Unread Alerts</p>
               </div>
             </CardContent>
           </Card>

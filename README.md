@@ -68,6 +68,23 @@ npm run dev
 
 The frontend will be running on `http://localhost:3000` and the backend on `http://localhost:5000`.
 
+### Running with Docker (Live Reload)
+
+To run the entire full-stack application with live code reloading enabled:
+
+```bash
+docker compose up --build
+```
+
+- Any backend changes saved in `./backend` trigger an automatic reload via `nodemon` with polling.
+- Any frontend changes saved in `./frontend` trigger Next.js Fast Refresh automatically.
+
+To run the production-optimized build:
+
+```bash
+docker compose -f docker-compose.prod.yml up --build
+```
+
 ### Running Tests
 
 ```bash

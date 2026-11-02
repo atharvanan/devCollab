@@ -1,0 +1,8 @@
+{
+  "watch": ["src"],
+  "ext": "js,json",
+  "ignore": ["tests/*", "logs/*", "node_modules/*"],
+  "legacyWatch": true,
+  "pollingInterval": 500
+}
+

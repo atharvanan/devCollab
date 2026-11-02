@@ -20,6 +20,8 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { apiClient } from '@/lib/apiClient';
 import { KanbanBoard } from '@/components/board/KanbanBoard';
 import { ReviewList } from '@/components/reviews/ReviewList';
+import { CollaborativeEditor } from '@/components/collab/CollaborativeEditor';
+import { CollabSessionsList } from '@/components/collab/CollabSessionsList';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, Avatar } from '@/components/ui/Card';
@@ -39,13 +41,14 @@ export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get('tab') as any) || 'board';
-  const [tab, setTab] = useState<'board' | 'reviews' | 'members' | 'compliance'>(
-    ['board', 'reviews', 'members', 'compliance'].includes(initialTab) ? initialTab : 'board'
+  const [tab, setTab] = useState<'board' | 'reviews' | 'collab' | 'members' | 'compliance'>(
+    ['board', 'reviews', 'collab', 'members', 'compliance'].includes(initialTab) ? initialTab : 'board'
   );
 
   const { user } = useAppSelector((s) => s.auth);
   const { toast } = useToast();
 
+  const [activeSession, setActiveSession] = useState<any>(null);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('frontend_developer');
@@ -59,6 +62,27 @@ export default function ProjectDetailPage() {
     async () => {
       const res = await apiClient.get(`/projects/${id}`);
       return res.data.data.project;
+    }
+  );
+
+  // Fetch collaborative coding sessions
+  const { data: collabSessions = [], refetch: refetchCollab } = useQuery(
+    ['collab-sessions', id],
+    async () => {
+      try {
+        const res = await apiClient.get(`/collab/project/${id}`);
+        return res.data.data.sessions || [];
+      } catch (e) {
+        return [];
+      }
+    },
+    {
+      enabled: !!id,
+      onSuccess: (sessions) => {
+        if (sessions?.length > 0 && !activeSession) {
+          setActiveSession(sessions[0]);
+        }
+      },
     }
   );
 
@@ -228,6 +252,15 @@ export default function ProjectDetailPage() {
           {[
             { id: 'board', label: 'Kanban Board' },
             { id: 'reviews', label: 'Code Reviews' },
+            {
+              id: 'collab',
+              label: (
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-live" />
+                  Live Pair-Coding
+                </span>
+              ),
+            },
             { id: 'members', label: `Team Members (${project?.members?.length || 1})` },
             {
               id: 'compliance',
@@ -263,6 +296,43 @@ export default function ProjectDetailPage() {
 
         {/* Tab 2: Code Reviews */}
         {tab === 'reviews' && <ReviewList projectId={id} project={project} />}
+
+        {/* Tab 3: Real-Time Collaborative Coding & Share Tracking */}
+        {tab === 'collab' && (
+          <div className="space-y-6">
+            <CollabSessionsList
+              projectId={id}
+              sessions={collabSessions}
+              activeSessionId={activeSession?._id || (collabSessions[0]?._id ?? null)}
+              onSelectSession={(s) => setActiveSession(s)}
+              onSessionCreated={(s) => {
+                refetchCollab();
+                setActiveSession(s);
+              }}
+              onSessionDeleted={() => {
+                refetchCollab();
+                setActiveSession(null);
+              }}
+              isPM={isPM}
+            />
+
+            {(activeSession || collabSessions[0]) && (
+              <div className="pt-2">
+                <CollaborativeEditor
+                  session={activeSession || collabSessions[0]}
+                  project={project}
+                  onSessionUpdated={() => {
+                    refetchCollab();
+                  }}
+                  onReviewCreated={() => {
+                    refetchCollab();
+                    setTab('reviews');
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Tab 3: Team Members & Role Management */}
         {tab === 'members' && (

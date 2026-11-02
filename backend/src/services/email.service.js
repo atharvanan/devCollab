@@ -123,6 +123,28 @@ const sendNotificationEmail = async (to, { title, message, link }) => {
   return sendEmail({ to, subject: title, html });
 };
 
-module.exports = { sendEmail, sendOTPEmail, sendNotificationEmail, verifySMTPConnection };
+const sendPasswordResetEmail = async (to, otp, name) => {
+  logger.info(`[AUTH] Password Reset OTP for ${to}: ${otp}`);
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b; background: #ffffff; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0;">
+      <div style="display: flex; align-items: center; margin-bottom: 20px;">
+        <h2 style="color: #4f46e5; margin: 0; font-size: 22px; font-weight: 700;">DevCollab</h2>
+      </div>
+      <h3 style="color: #0f172a; margin-top: 0; font-size: 18px;">Password Reset Request</h3>
+      <p style="font-size: 14px; line-height: 1.6; color: #475569;">Hi ${name || 'there'},</p>
+      <p style="font-size: 14px; line-height: 1.6; color: #475569;">We received a request to reset your password. Use the verification code below to complete the reset process:</p>
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; text-align: center; margin: 24px 0;">
+        <span style="font-family: monospace; font-size: 34px; font-weight: 700; letter-spacing: 8px; color: #4f46e5;">${otp}</span>
+      </div>
+      <p style="font-size: 13px; color: #64748b;">This verification code will expire in <strong>15 minutes</strong>. If you did not request a password reset, no action is needed and your account remains secure.</p>
+      <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
+      <p style="color: #94a3b8; font-size: 12px; margin: 0;">DevCollab — Real-Time Collaborative Workspace & Code Reviews</p>
+    </div>
+  `;
+  return sendEmail({ to, subject: 'Reset your DevCollab password', html });
+};
+
+module.exports = { sendEmail, sendOTPEmail, sendPasswordResetEmail, sendNotificationEmail, verifySMTPConnection };
 
 

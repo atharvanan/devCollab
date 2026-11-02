@@ -1,0 +1,55 @@
+services:
+  mongodb:
+    image: mongo:7
+    container_name: devcollab-mongo-prod
+    restart: always
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo-prod-data:/data/db
+
+  redis:
+    image: redis:7-alpine
+    container_name: devcollab-redis-prod
+    restart: always
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-prod-data:/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runner
+    container_name: devcollab-backend-prod
+    restart: always
+    ports:
+      - '5000:5000'
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017/devcollab
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - mongodb
+      - redis
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runner
+    container_name: devcollab-frontend-prod
+    restart: always
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:5000/api/v1
+      - NEXT_PUBLIC_SOCKET_URL=http://localhost:5000
+    depends_on:
+      - backend
+
+volumes:
+  mongo-prod-data:
+  redis-prod-data:

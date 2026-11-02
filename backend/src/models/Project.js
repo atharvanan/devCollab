@@ -8,7 +8,24 @@ const projectSchema = new mongoose.Schema(
     members: [
       {
         user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-        role: { type: String, enum: ['viewer', 'contributor', 'admin'], default: 'contributor' },
+        role: {
+          type: String,
+          enum: [
+            'project_manager',
+            'frontend_developer',
+            'backend_developer',
+            'db_developer',
+            'devops',
+            'cloud_admin',
+            'qa_tester',
+            'ui_ux_designer',
+            'security_engineer',
+            'admin',
+            'contributor',
+            'viewer',
+          ],
+          default: 'contributor',
+        },
         joinedAt: { type: Date, default: Date.now },
       },
     ],
@@ -27,11 +44,27 @@ projectSchema.methods.isMember = function (userId) {
   return (
     this.owner.toString() === uid ||
     this.members.some((m) => {
-      // m.user may be a populated document or a raw ObjectId
       const memberId = (m.user?._id ?? m.user).toString();
       return memberId === uid;
     })
   );
+};
+
+projectSchema.methods.getUserRole = function (userId) {
+  const uid = userId.toString();
+  if (this.owner.toString() === uid) return 'project_manager';
+  const member = this.members.find((m) => {
+    const memberId = (m.user?._id ?? m.user).toString();
+    return memberId === uid;
+  });
+  return member ? member.role : null;
+};
+
+projectSchema.methods.isProjectManager = function (userId) {
+  const uid = userId.toString();
+  if (this.owner.toString() === uid) return true;
+  const role = this.getUserRole(uid);
+  return role === 'project_manager' || role === 'admin';
 };
 
 module.exports = mongoose.model('Project', projectSchema);

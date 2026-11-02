@@ -2,15 +2,30 @@
 import { useState } from 'react';
 import { useQuery } from 'react-query';
 import Link from 'next/link';
-import { Plus, GitPullRequest } from 'lucide-react';
+import { Plus, GitPullRequest, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, Badge } from '@/components/ui/Card';
 import { apiClient } from '@/lib/apiClient';
-import { STATUS_COLORS, formatRelativeTime } from '@/lib/utils';
+import { STATUS_COLORS, DOMAINS, formatRelativeTime } from '@/lib/utils';
+import { useAppSelector } from '@/hooks/useRedux';
 import { NewReviewModal } from './NewReviewModal';
 
-export function ReviewList({ projectId }: { projectId: string }) {
+export function ReviewList({ projectId, project }: { projectId: string; project?: any }) {
   const [showModal, setShowModal] = useState(false);
+  const { user } = useAppSelector((s) => s.auth);
+
+  const isPM =
+    project?.owner?._id === user?._id ||
+    project?.members?.some(
+      (m: any) =>
+        (m.user?._id || m.user) === user?._id &&
+        (m.role === 'project_manager' || m.role === 'admin')
+    );
+
+  const userMember = project?.members?.find(
+    (m: any) => (m.user?._id || m.user) === user?._id
+  );
+  const userRole = project?.owner?._id === user?._id ? 'project_manager' : userMember?.role;
 
   const { data, refetch, isLoading } = useQuery(['reviews', projectId], async () => {
     const res = await apiClient.get(`/reviews?projectId=${projectId}`);
@@ -43,14 +58,21 @@ export function ReviewList({ projectId }: { projectId: string }) {
             <Link key={r._id} href={`/reviews/${r._id}`} className="block group">
               <Card className="p-4 hover:border-primary/50 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 group-hover:shadow-sm">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
-                    {r.title}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                      {r.title}
+                    </p>
+                    {r.domain && r.domain !== 'general' && (
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 shrink-0">
+                        {DOMAINS[r.domain] || r.domain}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
                     by <span className="text-foreground/90 font-medium">{r.author?.name || 'Developer'}</span> · {formatRelativeTime(r.createdAt)}
                   </p>
                 </div>
-                <div className="shrink-0">
+                <div className="shrink-0 flex items-center gap-2">
                   <Badge className={STATUS_COLORS[r.status]}>
                     {r.status.replace('_', ' ')}
                   </Badge>
@@ -77,6 +99,8 @@ export function ReviewList({ projectId }: { projectId: string }) {
       {showModal && (
         <NewReviewModal
           projectId={projectId}
+          userRole={userRole}
+          isPM={isPM}
           onClose={() => setShowModal(false)}
           onCreated={() => {
             setShowModal(false);

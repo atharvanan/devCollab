@@ -12,8 +12,9 @@ exports.getBoard = catchAsync(async (req, res) => {
   if (!project.isMember(req.user._id)) throw new AppError('Access denied', 403);
 
   const tasks = await Task.find({ project: projectId })
-    .populate('assignees', 'name avatar')
+    .populate('assignees', 'name avatar email')
     .populate('createdBy', 'name avatar')
+    .populate('managerReview.reviewedBy', 'name avatar')
     .sort({ order: 1 });
 
   const columns = ['backlog', 'todo', 'in_progress', 'review', 'done'];
@@ -38,7 +39,7 @@ exports.createTask = catchAsync(async (req, res) => {
     createdBy: req.user._id,
     order: count,
   });
-  await task.populate('assignees', 'name avatar');
+  await task.populate('assignees', 'name avatar email');
   await task.populate('createdBy', 'name avatar');
 
   getIO().to(`project:${projectId}`).emit('task:created', task);
@@ -50,9 +51,9 @@ exports.createTask = catchAsync(async (req, res) => {
       .map((a) => ({
         recipient: a._id, sender: req.user._id,
         type: 'task_assigned',
-        title: 'You have been assigned a task',
+        title: 'New task assigned to you',
         message: `${req.user.name} assigned you to "${task.title}"`,
-        link: `/projects/${projectId}/board`,
+        link: `/projects/${projectId}?tab=board`,
       }));
     if (notifications.length) {
       await Notification.insertMany(notifications);
@@ -69,20 +70,152 @@ exports.updateTask = catchAsync(async (req, res) => {
   const task = await Task.findById(req.params.taskId);
   if (!task) throw new AppError('Task not found', 404);
 
-  const allowed = ['title', 'description', 'column', 'priority', 'assignees', 'dueDate', 'labels', 'order'];
+  const allowed = ['title', 'description', 'column', 'priority', 'targetRole', 'assignees', 'dueDate', 'labels', 'order'];
   allowed.forEach((k) => { if (req.body[k] !== undefined) task[k] = req.body[k]; });
   await task.save();
-  await task.populate('assignees', 'name avatar');
+  await task.populate('assignees', 'name avatar email');
+  await task.populate('createdBy', 'name avatar');
+  await task.populate('managerReview.reviewedBy', 'name avatar');
 
   getIO().to(`project:${task.project}`).emit('task:updated', task);
   res.json({ success: true, data: { task } });
+});
+
+exports.toggleTaskComplete = catchAsync(async (req, res) => {
+  const { taskId } = req.params;
+  const task = await Task.findById(taskId);
+  if (!task) throw new AppError('Task not found', 404);
+
+  const project = await Project.findById(task.project);
+  if (!project) throw new AppError('Project not found', 404);
+  if (!project.isMember(req.user._id)) throw new AppError('Access denied', 403);
+
+  const isAssignee = task.assignees.some((a) => a.toString() === req.user._id.toString());
+  const isPM = project.isProjectManager(req.user._id);
+
+  if (!isAssignee && !isPM) {
+    throw new AppError('Only the assigned developer or Project Manager can toggle completion', 403);
+  }
+
+  const newCompletedState = !task.completedByAssignee;
+  task.completedByAssignee = newCompletedState;
+  task.completedAt = newCompletedState ? new Date() : null;
+
+  if (newCompletedState) {
+    task.column = 'review';
+    task.managerReview = { status: 'pending', feedback: '', reviewedBy: null, reviewedAt: null };
+  } else {
+    task.column = 'in_progress';
+  }
+
+  await task.save();
+  await task.populate('assignees', 'name avatar email');
+  await task.populate('createdBy', 'name avatar');
+  await task.populate('managerReview.reviewedBy', 'name avatar');
+
+  getIO().to(`project:${task.project}`).emit('task:updated', task);
+
+  // Notify Project Manager when marked complete
+  if (newCompletedState) {
+    const pmRecipients = new Set();
+    pmRecipients.add(project.owner.toString());
+    project.members.forEach((m) => {
+      if ((m.role === 'project_manager' || m.role === 'admin') && m.user.toString() !== req.user._id.toString()) {
+        pmRecipients.add((m.user?._id || m.user).toString());
+      }
+    });
+    pmRecipients.delete(req.user._id.toString());
+
+    const notifications = Array.from(pmRecipients).map((pmId) => ({
+      recipient: pmId,
+      sender: req.user._id,
+      type: 'task_completed',
+      title: 'Task marked as done — Ready for review',
+      message: `${req.user.name} marked "${task.title}" as completed. Please review their work.`,
+      link: `/projects/${project._id}?tab=board`,
+    }));
+
+    if (notifications.length > 0) {
+      await Notification.insertMany(notifications);
+      notifications.forEach((n) => {
+        getIO().to(`user:${n.recipient}`).emit('notification:new', { type: 'task_completed' });
+      });
+    }
+  }
+
+  res.json({ success: true, message: newCompletedState ? 'Task marked complete and submitted for review' : 'Task marked as in-progress', data: { task } });
+});
+
+exports.reviewTask = catchAsync(async (req, res) => {
+  const { taskId } = req.params;
+  const { status, feedback = '' } = req.body; // status: 'approved' | 'rejected'
+
+  if (!['approved', 'rejected'].includes(status)) {
+    throw new AppError('Review status must be approved or rejected', 400);
+  }
+
+  const task = await Task.findById(taskId);
+  if (!task) throw new AppError('Task not found', 404);
+
+  const project = await Project.findById(task.project);
+  if (!project) throw new AppError('Project not found', 404);
+
+  if (!project.isProjectManager(req.user._id)) {
+    throw new AppError('Only the Project Manager or owner can review and sign off on tasks', 403);
+  }
+
+  task.managerReview = {
+    status,
+    feedback: feedback.trim(),
+    reviewedBy: req.user._id,
+    reviewedAt: new Date(),
+  };
+
+  if (status === 'approved') {
+    task.column = 'done';
+  } else {
+    task.column = 'in_progress';
+    task.completedByAssignee = false;
+  }
+
+  await task.save();
+  await task.populate('assignees', 'name avatar email');
+  await task.populate('createdBy', 'name avatar');
+  await task.populate('managerReview.reviewedBy', 'name avatar');
+
+  getIO().to(`project:${task.project}`).emit('task:updated', task);
+
+  // Notify assignees about PM decision
+  if (task.assignees?.length) {
+    const notifications = task.assignees
+      .filter((a) => a._id.toString() !== req.user._id.toString())
+      .map((a) => ({
+        recipient: a._id,
+        sender: req.user._id,
+        type: status === 'approved' ? 'task_approved' : 'task_rejected',
+        title: status === 'approved' ? 'Task Approved by PM! 🎉' : 'Changes Requested on Task ✏️',
+        message: `${req.user.name} (Project Manager) ${status === 'approved' ? 'approved' : 'requested revisions on'} "${task.title}". ${feedback ? `Feedback: "${feedback}"` : ''}`,
+        link: `/projects/${project._id}?tab=board`,
+      }));
+
+    if (notifications.length > 0) {
+      await Notification.insertMany(notifications);
+      notifications.forEach((n) => {
+        getIO().to(`user:${n.recipient}`).emit('notification:new', { type: 'task_reviewed' });
+      });
+    }
+  }
+
+  res.json({ success: true, message: `Task ${status === 'approved' ? 'approved and moved to Done' : 'returned to In Progress with feedback'}`, data: { task } });
 });
 
 exports.moveTask = catchAsync(async (req, res) => {
   const { taskId } = req.params;
   const { column, order } = req.body;
   const task = await Task.findByIdAndUpdate(taskId, { column, order }, { new: true })
-    .populate('assignees', 'name avatar');
+    .populate('assignees', 'name avatar email')
+    .populate('createdBy', 'name avatar')
+    .populate('managerReview.reviewedBy', 'name avatar');
   if (!task) throw new AppError('Task not found', 404);
 
   getIO().to(`project:${task.project}`).emit('task:moved', { taskId, column, order });

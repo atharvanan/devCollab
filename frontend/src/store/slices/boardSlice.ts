@@ -29,11 +29,13 @@ const boardSlice = createSlice({
     },
     updateTask(state, action: PayloadAction<any>) {
       const task = action.payload;
-      const col = state.columns[task.column];
-      if (col) {
-        const idx = col.findIndex((t: any) => t._id === task._id);
-        if (idx !== -1) col[idx] = task;
-      }
+      Object.keys(state.columns).forEach((col) => {
+        state.columns[col] = state.columns[col].filter((t: any) => t._id !== task._id);
+      });
+      const col = task.column || 'backlog';
+      if (!state.columns[col]) state.columns[col] = [];
+      state.columns[col].push(task);
+      state.columns[col].sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
     },
     removeTask(state, action: PayloadAction<string>) {
       Object.keys(state.columns).forEach((col) => {

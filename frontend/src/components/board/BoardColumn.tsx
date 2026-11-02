@@ -9,9 +9,11 @@ interface Props {
   title: string;
   tasks: any[];
   onAddTask: () => void;
+  isPM?: boolean;
+  currentUserId?: string;
 }
 
-export function BoardColumn({ id, title, tasks, onAddTask }: Props) {
+export function BoardColumn({ id, title, tasks, onAddTask, isPM, currentUserId }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id });
 
   return (
@@ -40,7 +42,7 @@ export function BoardColumn({ id, title, tasks, onAddTask }: Props) {
         )}
       >
         {tasks.map((task) => (
-          <TaskCard key={task._id} task={task} />
+          <TaskCard key={task._id} task={task} isPM={isPM} currentUserId={currentUserId} />
         ))}
         {tasks.length === 0 && (
           <div className="flex flex-col items-center justify-center py-8 text-center border border-dashed border-border/40 rounded-lg">

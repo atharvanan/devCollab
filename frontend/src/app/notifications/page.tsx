@@ -1,7 +1,7 @@
 'use client';
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { Bell, Check, CheckCheck, Inbox } from 'lucide-react';
+import { Bell, Check, CheckCheck, Inbox, ShieldAlert, CheckCircle, RotateCcw } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -70,11 +70,32 @@ export default function NotificationsPage() {
                 key={n._id}
                 className={cn(
                   'p-4 flex items-start gap-3 transition-colors',
-                  !n.read && 'border-primary/40 bg-primary/5'
+                  n.type === 'security_violation'
+                    ? 'border-rose-500/50 bg-rose-500/5 ring-1 ring-rose-500/20'
+                    : !n.read && 'border-primary/40 bg-primary/5'
                 )}
               >
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <Bell className="w-4 h-4 text-primary" />
+                <div
+                  className={cn(
+                    'w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5',
+                    n.type === 'security_violation'
+                      ? 'bg-rose-500/10 text-rose-500'
+                      : n.type === 'task_completed' || n.type === 'task_approved'
+                      ? 'bg-emerald-500/10 text-emerald-500'
+                      : n.type === 'task_rejected'
+                      ? 'bg-rose-500/10 text-rose-500'
+                      : 'bg-primary/10 text-primary'
+                  )}
+                >
+                  {n.type === 'security_violation' ? (
+                    <ShieldAlert className="w-4 h-4" />
+                  ) : n.type === 'task_approved' || n.type === 'task_completed' ? (
+                    <CheckCircle className="w-4 h-4" />
+                  ) : n.type === 'task_rejected' ? (
+                    <RotateCcw className="w-4 h-4" />
+                  ) : (
+                    <Bell className="w-4 h-4" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <Link

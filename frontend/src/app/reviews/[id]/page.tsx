@@ -9,7 +9,7 @@ import { apiClient } from '@/lib/apiClient';
 import { useJoinRoom, useSocket } from '@/hooks/useSocket';
 import { Badge } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { STATUS_COLORS } from '@/lib/utils';
+import { STATUS_COLORS, DOMAINS } from '@/lib/utils';
 import { CodeViewer } from '@/components/reviews/CodeViewer';
 import { CommentThread } from '@/components/reviews/CommentThread';
 import { useToast } from '@/components/ui/Toast';
@@ -108,6 +108,11 @@ export default function ReviewDetailPage() {
                 <Badge className={STATUS_COLORS[review.status]}>
                   {review.status.replace('_', ' ')}
                 </Badge>
+                {review.domain && review.domain !== 'general' && (
+                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                    Domain: {DOMAINS[review.domain] || review.domain}
+                  </span>
+                )}
               </div>
               <p className="text-sm text-muted-foreground mt-1 break-words">
                 {review.description || 'No description provided for this review.'}

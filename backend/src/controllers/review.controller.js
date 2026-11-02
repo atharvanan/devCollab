@@ -4,16 +4,38 @@ const Notification = require('../models/Notification');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 const { getIO } = require('../socket');
+const { canRoleAccessDomain, ROLE_DISPLAY_NAMES, recordSecurityViolation } = require('../utils/roleCompliance');
 
 exports.createReview = catchAsync(async (req, res) => {
-  const { projectId, title, description, code, language } = req.body;
+  const { projectId, title, description, code, language, domain = 'general' } = req.body;
   const project = await Project.findById(projectId);
   if (!project) throw new AppError('Project not found', 404);
   if (!project.isMember(req.user._id)) throw new AppError('Access denied', 403);
 
+  const userRole = project.getUserRole(req.user._id);
+  const isPM = project.isProjectManager(req.user._id);
+
+  // Check role-based domain boundaries
+  if (!isPM && !canRoleAccessDomain(userRole, domain)) {
+    const roleName = ROLE_DISPLAY_NAMES[userRole] || userRole;
+    await recordSecurityViolation({
+      req,
+      project,
+      attemptedAction: 'UNAUTHORIZED_CODE_CREATION',
+      targetResource: 'code_review',
+      targetDomain: domain,
+      details: `${req.user.name} (${roleName}) attempted to publish ${domain} code for review "${title}". Blocked by Role Boundary Guard.`,
+      severity: 'high',
+    });
+    throw new AppError(
+      `Compliance Violation: As a ${roleName}, you are strictly bound to your role and cannot create or modify ${domain} code. Your Project Manager has been alerted.`,
+      403
+    );
+  }
+
   const review = await Review.create({
     project: projectId, author: req.user._id,
-    title, description, code, language,
+    title, description, code, language, domain,
   });
   await review.populate('author', 'name avatar email');
 
@@ -139,5 +161,50 @@ exports.updateStatus = catchAsync(async (req, res) => {
       getIO().to(`user:${review.author}`).emit('notification:new', { type: typeMap[status] });
     }
   }
+  res.json({ success: true, data: { review } });
+});
+
+exports.updateReview = catchAsync(async (req, res) => {
+  const { title, description, code, domain } = req.body;
+  const review = await Review.findById(req.params.id);
+  if (!review) throw new AppError('Review not found', 404);
+
+  const project = await Project.findById(review.project);
+  if (!project) throw new AppError('Project not found', 404);
+  if (!project.isMember(req.user._id)) throw new AppError('Access denied', 403);
+
+  const userRole = project.getUserRole(req.user._id);
+  const isPM = project.isProjectManager(req.user._id);
+  const targetDomain = domain || review.domain || 'general';
+
+  // Code modification security guard
+  if (code !== undefined && code !== review.code) {
+    if (!isPM && !canRoleAccessDomain(userRole, targetDomain)) {
+      const roleName = ROLE_DISPLAY_NAMES[userRole] || userRole;
+      await recordSecurityViolation({
+        req,
+        project,
+        attemptedAction: 'UNAUTHORIZED_CODE_EDIT',
+        targetResource: 'code_review',
+        targetDomain,
+        targetId: review._id,
+        details: `${req.user.name} (${roleName}) attempted to alter ${targetDomain} code in review "${review.title}". Blocked by Role Boundary Guard.`,
+        severity: 'critical',
+      });
+      throw new AppError(
+        `Security Alert: As a ${roleName}, you are strictly bound to your role and cannot modify ${targetDomain} code. Your Project Manager has been alerted.`,
+        403
+      );
+    }
+  }
+
+  if (title !== undefined) review.title = title;
+  if (description !== undefined) review.description = description;
+  if (code !== undefined) review.code = code;
+  if (domain !== undefined && isPM) review.domain = domain;
+
+  await review.save();
+  await review.populate('author', 'name avatar email');
+  getIO().to(`review:${review._id}`).emit('review:updated', review);
   res.json({ success: true, data: { review } });
 });

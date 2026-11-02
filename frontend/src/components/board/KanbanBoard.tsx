@@ -11,11 +11,20 @@ import { COLUMNS, COLUMN_LABELS } from '@/lib/utils';
 import { BoardColumn } from './BoardColumn';
 import { TaskModal } from './TaskModal';
 
-export function KanbanBoard({ projectId }: { projectId: string }) {
+export function KanbanBoard({ projectId, project }: { projectId: string; project?: any }) {
   const dispatch = useAppDispatch();
   const columns = useAppSelector((s) => s.board.columns);
+  const { user } = useAppSelector((s) => s.auth);
   const qc = useQueryClient();
   const [activeTaskModal, setActiveTaskModal] = useState<{ column: string } | null>(null);
+
+  const isPM =
+    project?.owner?._id === user?._id ||
+    project?.members?.some(
+      (m: any) =>
+        (m.user?._id || m.user) === user?._id &&
+        (m.role === 'project_manager' || m.role === 'admin')
+    );
 
   useJoinRoom(`project:${projectId}`);
 
@@ -117,6 +126,8 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
                 title={COLUMN_LABELS[col]}
                 tasks={columns[col] || []}
                 onAddTask={() => setActiveTaskModal({ column: col })}
+                isPM={isPM}
+                currentUserId={user?._id}
               />
             </SortableContext>
           ))}
@@ -127,6 +138,8 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
         <TaskModal
           projectId={projectId}
           column={activeTaskModal.column}
+          projectMembers={project?.members || []}
+          isPM={isPM}
           onClose={() => setActiveTaskModal(null)}
         />
       )}

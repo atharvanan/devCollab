@@ -11,6 +11,21 @@ const taskSchema = new mongoose.Schema(
       default: 'backlog',
     },
     priority: { type: String, enum: ['low', 'medium', 'high', 'critical'], default: 'medium' },
+    targetRole: {
+      type: String,
+      enum: [
+        'any',
+        'frontend_developer',
+        'backend_developer',
+        'db_developer',
+        'devops',
+        'cloud_admin',
+        'qa_tester',
+        'ui_ux_designer',
+        'security_engineer',
+      ],
+      default: 'any',
+    },
     assignees: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     dueDate: { type: Date },
@@ -18,6 +33,14 @@ const taskSchema = new mongoose.Schema(
     labels: [{ type: String }],
     attachments: [{ url: String, publicId: String, name: String }],
     linkedReview: { type: mongoose.Schema.Types.ObjectId, ref: 'Review' },
+    completedByAssignee: { type: Boolean, default: false },
+    completedAt: { type: Date },
+    managerReview: {
+      status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+      reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      feedback: { type: String, default: '' },
+      reviewedAt: { type: Date },
+    },
   },
   { timestamps: true }
 );

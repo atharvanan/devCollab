@@ -25,6 +25,11 @@ const reviewSchema = new mongoose.Schema(
     description: { type: String, maxlength: 1000, default: '' },
     code: { type: String, required: true },
     language: { type: String, default: 'javascript' },
+    domain: {
+      type: String,
+      enum: ['frontend', 'backend', 'database', 'devops_cloud', 'qa', 'security', 'general'],
+      default: 'general',
+    },
     status: {
       type: String,
       enum: ['open', 'in_review', 'approved', 'changes_requested', 'closed'],

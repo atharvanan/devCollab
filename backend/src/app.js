@@ -23,8 +23,29 @@ app.set('trust proxy', 1);
 
 app.use(helmet());
 
+const getAllowedOrigins = () => {
+  const envOrigins = (process.env.CLIENT_URL || 'http://localhost:3000')
+    .split(',')
+    .map((o) => o.trim().replace(/\/+$/, ''));
+  return envOrigins;
+};
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const allowed = getAllowedOrigins();
+    const cleanOrigin = origin.replace(/\/+$/, '');
+    if (
+      allowed.includes(cleanOrigin) ||
+      allowed.includes('*') ||
+      cleanOrigin.endsWith('.vercel.app') ||
+      cleanOrigin === 'http://localhost:3000'
+    ) {
+      return callback(null, true);
+    }
+    logger.warn(`CORS blocked origin: ${origin}`);
+    callback(new Error(`CORS origin not allowed: ${origin}`));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],

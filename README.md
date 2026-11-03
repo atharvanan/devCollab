@@ -95,6 +95,45 @@ cd backend && npm test
 cd frontend && npm test
 ```
 
+## Deployment Guide
+
+### 1. Deploying the Backend on Render
+
+1. Create a new **Web Service** on [Render](https://render.com).
+2. Connect your GitHub repository.
+3. Configure the service settings:
+   - **Root Directory**: `backend`
+   - **Environment**: `Node`
+   - **Build Command**: `npm install`
+   - **Start Command**: `npm start`
+   - **Health Check Path**: `/health`
+4. Set the following **Environment Variables** in the Render Dashboard:
+   - `NODE_ENV`: `production`
+   - `PORT`: `10000` (Render will bind automatically)
+   - `MONGODB_URI`: Your MongoDB Atlas connection string
+   - `JWT_ACCESS_SECRET`: A secure random string (minimum 32 characters)
+   - `JWT_REFRESH_SECRET`: A secure random string (minimum 32 characters)
+   - `CLIENT_URL`: Your Vercel frontend URL (e.g. `https://devcollab.vercel.app`)
+   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`: Your email service credentials
+   - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`: Your Cloudinary keys
+
+> **Note**: Cross-origin cookies and CORS are pre-configured to allow `.vercel.app` domains and use `sameSite: 'none'` with `secure: true` in production.
+
+---
+
+### 2. Deploying the Frontend on Vercel
+
+1. Import your GitHub repository on [Vercel](https://vercel.com).
+2. In the project creation screen, set:
+   - **Framework Preset**: `Next.js`
+   - **Root Directory**: Click *Edit* and select `frontend`
+3. Add the following **Environment Variables**:
+   - `NEXT_PUBLIC_API_URL`: Your Render backend API endpoint (e.g. `https://devcollab-backend.onrender.com/api/v1`)
+   - `NEXT_PUBLIC_SOCKET_URL`: Your Render backend base URL (e.g. `https://devcollab-backend.onrender.com`)
+4. Click **Deploy**. Vercel will automatically build and publish your Next.js 14 application.
+
+---
+
 ## License
 
 MIT

@@ -6,10 +6,31 @@ const logger = require('../utils/logger');
 
 let io;
 
+const isOriginAllowed = (origin) => {
+  if (!origin) return true;
+  const allowed = (process.env.CLIENT_URL || 'http://localhost:3000')
+    .split(',')
+    .map((o) => o.trim().replace(/\/+$/, ''));
+  const cleanOrigin = origin.replace(/\/+$/, '');
+  return (
+    allowed.includes(cleanOrigin) ||
+    allowed.includes('*') ||
+    cleanOrigin.endsWith('.vercel.app') ||
+    cleanOrigin === 'http://localhost:3000'
+  );
+};
+
 const initSocket = (server) => {
   io = new Server(server, {
     cors: {
-      origin: process.env.CLIENT_URL || 'http://localhost:3000',
+      origin: (origin, callback) => {
+        if (isOriginAllowed(origin)) {
+          callback(null, true);
+        } else {
+          logger.warn(`Socket CORS blocked origin: ${origin}`);
+          callback(new Error(`Socket CORS origin not allowed: ${origin}`));
+        }
+      },
       credentials: true,
     },
     pingTimeout: 60000,

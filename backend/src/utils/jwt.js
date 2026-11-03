@@ -20,11 +20,13 @@ const verifyRefreshToken = (token) => {
   return jwt.verify(token, process.env.JWT_REFRESH_SECRET);
 };
 
+const isProd = process.env.NODE_ENV === 'production';
+
 const setRefreshCookie = (res, token) => {
   res.cookie('refreshToken', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax', // 'none' required for cross-domain auth (Vercel frontend -> Render backend)
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
 };
@@ -32,8 +34,8 @@ const setRefreshCookie = (res, token) => {
 const clearRefreshCookie = (res) => {
   res.clearCookie('refreshToken', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
   });
 };
 

@@ -1,6 +1,15 @@
 import axios from 'axios';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+const getBaseUrl = (): string => {
+  let url = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+  url = url.trim().replace(/\/+$/, '');
+  if (!url.endsWith('/api/v1')) {
+    url = `${url}/api/v1`;
+  }
+  return url;
+};
+
+const BASE_URL = getBaseUrl();
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,

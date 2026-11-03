@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useQuery } from 'react-query';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Lock,
@@ -15,6 +15,13 @@ import {
   CheckCircle,
   AlertTriangle,
   X,
+  PauseCircle,
+  PlayCircle,
+  CheckCircle2,
+  Bot,
+  Copy,
+  Check,
+  Archive,
 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { apiClient } from '@/lib/apiClient';
@@ -45,6 +52,7 @@ export default function ProjectDetailPage() {
     ['board', 'reviews', 'collab', 'members', 'compliance'].includes(initialTab) ? initialTab : 'board'
   );
 
+  const router = useRouter();
   const { user } = useAppSelector((s) => s.auth);
   const { toast } = useToast();
 
@@ -53,6 +61,15 @@ export default function ProjectDetailPage() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('frontend_developer');
   const [inviting, setInviting] = useState(false);
+
+  // Project lifecycle and bot testing states
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [botModalOpen, setBotModalOpen] = useState(false);
+  const [seededBotsList, setSeededBotsList] = useState<any[]>([]);
+  const [seedingBots, setSeedingBots] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState(false);
+  const [deletingProject, setDeletingProject] = useState(false);
+  const [copiedBot, setCopiedBot] = useState<string | null>(null);
 
   useJoinRoom(`project:${id}`);
 
@@ -177,6 +194,56 @@ export default function ProjectDetailPage() {
     }
   };
 
+  // Handle project status update (Active, On Hold, Completed, Archived)
+  const handleStatusChange = async (newStatus: 'active' | 'on_hold' | 'completed' | 'archived') => {
+    try {
+      setStatusUpdating(true);
+      await apiClient.patch(`/projects/${id}`, { status: newStatus });
+      toast.success(`Project marked as ${newStatus.replace('_', ' ')}!`);
+      refetchProject();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to update project status');
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
+  // Handle project deletion
+  const handleDeleteProject = async () => {
+    try {
+      setDeletingProject(true);
+      await apiClient.delete(`/projects/${id}`);
+      toast.success('Project deleted successfully.');
+      router.push('/projects');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to delete project');
+      setDeletingProject(false);
+    }
+  };
+
+  // Handle generating test bot team
+  const handleSeedBots = async () => {
+    try {
+      setSeedingBots(true);
+      const res = await apiClient.post(`/projects/${id}/seed-bots`);
+      setSeededBotsList(res.data.data.bots || []);
+      setBotModalOpen(true);
+      toast.success('5 Test bot teammates spawned and added to this project!');
+      refetchProject();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to generate test bots');
+    } finally {
+      setSeedingBots(false);
+    }
+  };
+
+  const copyBotCredentials = (email: string, pass: string) => {
+    navigator.clipboard.writeText(`${email}\n${pass}`);
+    setCopiedBot(email);
+    toast.success(`Credentials copied for ${email}!`);
+    setTimeout(() => setCopiedBot(null), 2000);
+  };
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -220,10 +287,32 @@ export default function ProjectDetailPage() {
                   </span>
                 )}
 
+                {/* Project Status Badge */}
+                {project?.status === 'completed' && (
+                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Completed
+                  </span>
+                )}
+                {project?.status === 'on_hold' && (
+                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1">
+                    <PauseCircle className="w-3.5 h-3.5" /> On Hold
+                  </span>
+                )}
+                {project?.status === 'archived' && (
+                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border flex items-center gap-1">
+                    <Archive className="w-3.5 h-3.5" /> Archived
+                  </span>
+                )}
+                {(!project?.status || project?.status === 'active') && (
+                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Active
+                  </span>
+                )}
+
                 {/* User Active Role Badge */}
                 <span
                   className={cn(
-                    'text-xs font-semibold px-2.5 py-0.5 rounded-full border shadow-sm',
+                    'text-xs font-semibold px-2.5 py-0.5 rounded-full border shadow-xs',
                     ROLE_COLORS[userRole] || 'bg-secondary text-secondary-foreground'
                   )}
                   title="Your assigned role on this project"
@@ -236,12 +325,74 @@ export default function ProjectDetailPage() {
               </p>
             </div>
 
-            {/* Quick action for PM */}
+            {/* Quick Actions for PM & Owner */}
             {isPM && (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button size="sm" variant="outline" onClick={() => setInviteModalOpen(true)}>
                   <UserPlus className="w-4 h-4 mr-1.5" /> Assign Role & Member
                 </Button>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  loading={seedingBots}
+                  onClick={handleSeedBots}
+                  title="Spawn 5 test bot teammates with engineering roles and login credentials"
+                >
+                  <Bot className="w-4 h-4 mr-1.5 text-primary" /> Test Bots Team
+                </Button>
+
+                {/* Project Lifecycle Actions */}
+                {project?.status !== 'completed' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    loading={statusUpdating}
+                    onClick={() => handleStatusChange('completed')}
+                    className="border-sky-500/30 text-sky-600 dark:text-sky-400 hover:bg-sky-500/10"
+                    title="Mark project as finished and completed"
+                  >
+                    <CheckCircle2 className="w-4 h-4 mr-1.5" /> Finish
+                  </Button>
+                )}
+
+                {project?.status !== 'on_hold' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    loading={statusUpdating}
+                    onClick={() => handleStatusChange('on_hold')}
+                    className="border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                    title="Put project on hold temporarily"
+                  >
+                    <PauseCircle className="w-4 h-4 mr-1.5" /> Hold
+                  </Button>
+                )}
+
+                {(project?.status === 'on_hold' || project?.status === 'completed') && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    loading={statusUpdating}
+                    onClick={() => handleStatusChange('active')}
+                    className="border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+                    title="Resume active work on project"
+                  >
+                    <PlayCircle className="w-4 h-4 mr-1.5" /> Resume
+                  </Button>
+                )}
+
+                {isOwner && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setDeleteModalOpen(true)}
+                    className="border-destructive/30 text-destructive hover:bg-destructive/10"
+                    title="Delete project"
+                  >
+                    <Trash2 className="w-4 h-4 mr-1.5" /> Delete
+                  </Button>
+                )}
               </div>
             )}
           </div>
@@ -337,7 +488,7 @@ export default function ProjectDetailPage() {
         {/* Tab 3: Team Members & Role Management */}
         {tab === 'members' && (
           <div className="space-y-6 max-w-3xl">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Project Team Members</h2>
                 <p className="text-xs text-muted-foreground">
@@ -345,11 +496,45 @@ export default function ProjectDetailPage() {
                 </p>
               </div>
               {isPM && (
-                <Button size="sm" onClick={() => setInviteModalOpen(true)}>
-                  <UserPlus className="w-4 h-4 mr-1.5" /> Invite Member
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    loading={seedingBots}
+                    onClick={handleSeedBots}
+                  >
+                    <Bot className="w-4 h-4 mr-1.5 text-primary" /> Spawn 5 Test Bots
+                  </Button>
+                  <Button size="sm" onClick={() => setInviteModalOpen(true)}>
+                    <UserPlus className="w-4 h-4 mr-1.5" /> Invite Member
+                  </Button>
+                </div>
               )}
             </div>
+
+            {/* Test Bots Info Banner */}
+            {isPM && (
+              <div className="p-3.5 rounded-xl border border-primary/20 bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                <div className="flex items-start gap-2.5">
+                  <Bot className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-foreground">End-to-End Testing with Multi-Role Bots</span>
+                    <p className="text-muted-foreground mt-0.5">
+                      Need to test ticket completion and review approval from other tabs? Spawn 5 verified test bots (Frontend, Backend, QA, UI/UX, DevOps) and log in with their credentials instantly.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  loading={seedingBots}
+                  onClick={handleSeedBots}
+                  className="shrink-0 text-xs"
+                >
+                  <Bot className="w-3.5 h-3.5 mr-1.5" /> Generate Test Bots
+                </Button>
+              </div>
+            )}
 
             <div className="space-y-3">
               {project?.members?.map((m: any) => {
@@ -603,6 +788,148 @@ export default function ProjectDetailPage() {
                   Invite & Assign Role
                 </Button>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Project Confirmation Modal */}
+        {deleteModalOpen && (
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4"
+            onClick={() => setDeleteModalOpen(false)}
+          >
+            <div
+              className="bg-card border border-destructive/30 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg text-foreground">Delete Project</h3>
+                  <p className="text-xs text-muted-foreground">This action is irreversible.</p>
+                </div>
+              </div>
+
+              <p className="text-xs sm:text-sm text-foreground/80 leading-relaxed">
+                Are you sure you want to delete <strong className="text-foreground">{project?.name}</strong>?
+                All associated Kanban tasks, code reviews, collaborative pair-coding sessions, and security audits will be permanently removed.
+              </p>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <Button variant="outline" size="sm" onClick={() => setDeleteModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  loading={deletingProject}
+                  onClick={handleDeleteProject}
+                >
+                  <Trash2 className="w-4 h-4 mr-1.5" /> Yes, Delete Project
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Test Bot Credentials Cheat-Sheet Modal */}
+        {botModalOpen && (
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4"
+            onClick={() => setBotModalOpen(false)}
+          >
+            <div
+              className="bg-card border border-border rounded-2xl w-full max-w-xl p-6 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <Bot className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg text-foreground">Test Bot Teammates Ready</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Spawned and assigned to this project with role bindings.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setBotModalOpen(false)}
+                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-muted/40 border border-border/80 text-xs text-muted-foreground leading-relaxed space-y-1">
+                <p className="text-foreground font-semibold">How to test cross-role collaboration:</p>
+                <p>
+                  1. Open a new Incognito or separate browser window.<br />
+                  2. Sign in with any of the bot credentials below (passwords are already verified).<br />
+                  3. Open this project to test task completion, resolution submissions, code reviews, and role permissions!
+                </p>
+              </div>
+
+              <div className="space-y-2.5">
+                {(seededBotsList.length > 0 ? seededBotsList : [
+                  { name: 'Alex Chen (Frontend)', email: 'alex.frontend@devcollab.com', role: 'frontend_developer', password: 'DevCollab123!' },
+                  { name: 'Sarah Connor (Backend)', email: 'sarah.backend@devcollab.com', role: 'backend_developer', password: 'DevCollab123!' },
+                  { name: 'David Miller (QA Tester)', email: 'david.qa@devcollab.com', role: 'qa_tester', password: 'DevCollab123!' },
+                  { name: 'Emma Watson (UI/UX)', email: 'emma.designer@devcollab.com', role: 'ui_ux_designer', password: 'DevCollab123!' },
+                  { name: 'Lucas Vance (DevOps)', email: 'lucas.devops@devcollab.com', role: 'devops', password: 'DevCollab123!' },
+                ]).map((bot: any) => (
+                  <div
+                    key={bot.email}
+                    className="p-3.5 rounded-xl border border-border bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs hover:border-primary/40 transition-colors"
+                  >
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-foreground">{bot.name}</span>
+                        <span
+                          className={cn(
+                            'text-[10px] font-medium px-2 py-0.5 rounded border',
+                            ROLE_COLORS[bot.role] || 'bg-secondary text-secondary-foreground'
+                          )}
+                        >
+                          {ROLE_LABELS[bot.role] || bot.role}
+                        </span>
+                      </div>
+                      <p className="text-muted-foreground font-mono text-[11px] truncate">
+                        {bot.email}
+                      </p>
+                      <p className="text-muted-foreground text-[11px]">
+                        Password: <code className="font-mono bg-muted px-1.5 py-0.5 rounded text-foreground">{bot.password || 'DevCollab123!'}</code>
+                      </p>
+                    </div>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0 text-xs"
+                      onClick={() => copyBotCredentials(bot.email, bot.password || 'DevCollab123!')}
+                    >
+                      {copiedBot === bot.email ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 mr-1.5 text-emerald-500" /> Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5 mr-1.5" /> Copy Login
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <Button size="sm" onClick={() => setBotModalOpen(false)}>
+                  Done
+                </Button>
+              </div>
             </div>
           </div>
         )}

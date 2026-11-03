@@ -40,7 +40,6 @@ export const loginUser = createAsyncThunk('auth/login', async (credentials: { em
         isUnverified: true,
         userId: data.data?.userId,
         email: data.data?.email || credentials.email,
-        devOtp: data.data?.devOtp,
       });
     }
     return rejectWithValue(data?.message || 'Login failed');

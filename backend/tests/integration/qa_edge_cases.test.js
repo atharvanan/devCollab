@@ -334,5 +334,94 @@ describe('QA End-to-End & Edge Cases Test Suite', () => {
       });
       expect(notif).toBeDefined();
     });
+
+    it('EDGE CASE: Supports all programming languages (JSX, Java, C++, C#) in Code Reviews without MongoDB language override error', async () => {
+      const languages = ['javascript', 'jsx', 'tsx', 'java', 'cpp', 'csharp', 'python', 'go', 'rust'];
+
+      for (const lang of languages) {
+        const res = await request(app)
+          .post('/api/v1/reviews')
+          .set('Authorization', `Bearer ${pmToken}`)
+          .send({
+            projectId: project._id,
+            title: `Review in ${lang.toUpperCase()}`,
+            description: `Testing language support for ${lang}`,
+            code: `// Sample code for ${lang}\nconsole.log("Working!");`,
+            language: lang,
+            domain: 'general',
+          });
+
+        expect(res.status).toBe(201);
+        expect(res.body.success).toBe(true);
+        expect(res.body.data.review.language).toBe(lang);
+      }
+    });
+
+    it('PROJECT LIFECYCLE: PM can update project status to on_hold, completed, active, and delete project with cascade cleanup', async () => {
+      // 1. Put project on hold
+      let res = await request(app)
+        .patch(`/api/v1/projects/${project._id}`)
+        .set('Authorization', `Bearer ${pmToken}`)
+        .send({ status: 'on_hold' });
+      expect(res.status).toBe(200);
+      expect(res.body.data.project.status).toBe('on_hold');
+
+      // 2. Mark project completed
+      res = await request(app)
+        .patch(`/api/v1/projects/${project._id}`)
+        .set('Authorization', `Bearer ${pmToken}`)
+        .send({ status: 'completed' });
+      expect(res.status).toBe(200);
+      expect(res.body.data.project.status).toBe('completed');
+
+      // 3. Resume active
+      res = await request(app)
+        .patch(`/api/v1/projects/${project._id}`)
+        .set('Authorization', `Bearer ${pmToken}`)
+        .send({ status: 'active' });
+      expect(res.status).toBe(200);
+      expect(res.body.data.project.status).toBe('active');
+
+      // 4. Delete project with cascading cleanup
+      res = await request(app)
+        .delete(`/api/v1/projects/${project._id}`)
+        .set('Authorization', `Bearer ${pmToken}`);
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+
+      const deletedProj = await Project.findById(project._id);
+      expect(deletedProj).toBeNull();
+    });
+
+    it('TEST BOTS: Can seed multi-role test bots to project and verify bot login', async () => {
+      const res = await request(app)
+        .post(`/api/v1/projects/${project._id}/seed-bots`)
+        .set('Authorization', `Bearer ${pmToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.bots.length).toBe(5);
+
+      // Verify a bot can login with their credentials
+      const loginRes = await request(app)
+        .post('/api/v1/auth/login')
+        .send({
+          email: 'alex.frontend@devcollab.com',
+          password: 'DevCollab123!',
+        });
+
+      expect(loginRes.status).toBe(200);
+      expect(loginRes.body.data.accessToken).toBeDefined();
+      expect(loginRes.body.data.devOtp).toBeUndefined(); // devOtp should not leak!
+    });
+
+    it('SECURITY: Forgot password does NOT leak devOtp in response', async () => {
+      const res = await request(app)
+        .post('/api/v1/auth/forgot-password')
+        .send({ email: devUser.email });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data?.devOtp).toBeUndefined();
+    });
   });
 });

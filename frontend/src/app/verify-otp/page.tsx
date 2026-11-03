@@ -19,14 +19,12 @@ function VerifyOTPContent() {
 
   const userId = searchParams.get('userId') || '';
   const initialEmail = searchParams.get('email') || '';
-  const initialDevOtp = searchParams.get('devOtp') || '';
 
   // OTP was already triggered if we arrived from login/register with URL params
   const otpAlreadySent = !!(userId || initialEmail);
 
   const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [email, setEmail] = useState(initialEmail);
-  const [devOtp, setDevOtp] = useState(initialDevOtp);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
@@ -107,13 +105,6 @@ function VerifyOTPContent() {
     setError('');
   };
 
-  const autoFillDevOtp = (code: string) => {
-    if (code.length !== OTP_LENGTH) return;
-    setDigits(code.split(''));
-    setError('');
-    toast.info('OTP filled automatically');
-  };
-
   const handleVerify = useCallback(async (otpOverride?: string) => {
     const code = otpOverride || otp;
     if (code.length !== OTP_LENGTH) {
@@ -175,8 +166,7 @@ function VerifyOTPContent() {
     setSendingOtp(true);
     setError('');
     try {
-      const res = await apiClient.post('/auth/resend-otp', { email: trimmedEmail });
-      if (res.data?.data?.devOtp) setDevOtp(res.data.data.devOtp);
+      await apiClient.post('/auth/resend-otp', { email: trimmedEmail });
       setOtpSent(true);
       setResendCooldown(60);
       toast.success('Verification code sent to your email!');
@@ -200,17 +190,12 @@ function VerifyOTPContent() {
     setResending(true);
     setError('');
     try {
-      const res = await apiClient.post('/auth/resend-otp', {
+      await apiClient.post('/auth/resend-otp', {
         userId: userId || undefined,
         email: email || undefined,
       });
 
-      if (res.data?.data?.devOtp) {
-        setDevOtp(res.data.data.devOtp);
-        toast.success('New OTP generated!');
-      } else {
-        toast.success('Verification code resent to your email!');
-      }
+      toast.success('Verification code resent to your email!');
       setDigits(Array(OTP_LENGTH).fill(''));
       inputsRef.current[0]?.focus();
       setResendCooldown(60);

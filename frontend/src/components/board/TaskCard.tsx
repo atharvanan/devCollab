@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Calendar, CheckSquare, Square, ShieldAlert, CheckCircle2, RotateCcw, MessageSquare } from 'lucide-react';
+import { Calendar, CheckSquare, Square, ShieldAlert, CheckCircle2, RotateCcw, MessageSquare, Maximize2 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Avatar } from '@/components/ui/Card';
 import { PRIORITY_COLORS, ROLE_LABELS, ROLE_COLORS, formatDate, cn } from '@/lib/utils';
@@ -10,6 +10,7 @@ import { apiClient } from '@/lib/apiClient';
 import { useAppDispatch } from '@/hooks/useRedux';
 import { boardActions } from '@/store/slices/boardSlice';
 import { useToast } from '@/components/ui/Toast';
+import { TaskDetailModal } from './TaskDetailModal';
 
 export function TaskCard({
   task,
@@ -25,6 +26,7 @@ export function TaskCard({
   const [loadingAction, setLoadingAction] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [feedback, setFeedback] = useState('');
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task._id,
@@ -90,12 +92,24 @@ export function TaskCard({
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <Card className="p-3.5 cursor-grab active:cursor-grabbing hover:border-primary/40 transition-all shadow-sm space-y-2.5">
-        {/* Title */}
-        <p className="text-sm font-medium text-foreground line-clamp-2 leading-snug">
-          {task.title}
-        </p>
+    <>
+      <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+        <Card
+          onClick={() => setDetailModalOpen(true)}
+          className="p-3.5 cursor-pointer hover:border-primary/50 transition-all shadow-xs space-y-2.5 group relative"
+        >
+          {/* Top Title & Expand Icon */}
+          <div className="flex items-start justify-between gap-1.5">
+            <p className="text-sm font-medium text-foreground line-clamp-2 leading-snug group-hover:text-primary transition-colors">
+              {task.title}
+            </p>
+            <span
+              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 text-muted-foreground hover:text-foreground shrink-0"
+              title="Click to view full ticket details and feedback"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+            </span>
+          </div>
 
         {/* Role & Priority Badges */}
         <div className="flex flex-wrap items-center gap-1.5">
@@ -259,5 +273,15 @@ export function TaskCard({
         )}
       </Card>
     </div>
+
+    {detailModalOpen && (
+      <TaskDetailModal
+        task={task}
+        isPM={!!isPM}
+        currentUserId={currentUserId}
+        onClose={() => setDetailModalOpen(false)}
+      />
+    )}
+  </>
   );
 }

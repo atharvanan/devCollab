@@ -71,7 +71,6 @@ export default function RegisterPage() {
   const [registered, setRegistered] = useState<{
     userId: string;
     email: string;
-    devOtp?: string;
   } | null>(null);
 
   const passwordValue = watch('password') || '';
@@ -88,7 +87,6 @@ export default function RegisterPage() {
       setRegistered({
         userId: payload.userId || '',
         email: payload.email || data.email,
-        devOtp: payload.devOtp,
       });
     } else {
       const errMessage =
@@ -103,7 +101,6 @@ export default function RegisterPage() {
     const params = new URLSearchParams();
     if (registered.userId) params.set('userId', registered.userId);
     if (registered.email) params.set('email', registered.email);
-    if (registered.devOtp) params.set('devOtp', registered.devOtp);
     router.push(`/verify-otp?${params.toString()}`);
   };
 

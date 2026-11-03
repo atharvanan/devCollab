@@ -33,13 +33,11 @@ export default function ForgotPasswordPage() {
   const onSubmit = async (data: ForgotFormData) => {
     setLoading(true);
     try {
-      const res = await apiClient.post('/auth/forgot-password', { email: data.email });
-      const devOtp = res.data?.data?.devOtp;
+      await apiClient.post('/auth/forgot-password', { email: data.email });
       toast.success('Password reset instructions sent! Check your inbox.');
       setSubmittedEmail(data.email);
 
       const params = new URLSearchParams({ email: data.email });
-      if (devOtp) params.set('devOtp', devOtp);
 
       setTimeout(() => {
         router.push(`/reset-password?${params.toString()}`);

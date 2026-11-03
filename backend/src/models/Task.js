@@ -35,6 +35,17 @@ const taskSchema = new mongoose.Schema(
     linkedReview: { type: mongoose.Schema.Types.ObjectId, ref: 'Review' },
     completedByAssignee: { type: Boolean, default: false },
     completedAt: { type: Date },
+    resolutionNotes: { type: String, default: '' },
+    activityNotes: [
+      {
+        author: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        authorName: { type: String },
+        role: { type: String },
+        action: { type: String, enum: ['created', 'submitted', 'changes_requested', 'approved', 'comment'], default: 'comment' },
+        message: { type: String, required: true },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
     managerReview: {
       status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
       reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

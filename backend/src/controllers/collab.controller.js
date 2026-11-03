@@ -282,17 +282,33 @@ exports.exportToReview = catchAsync(async (req, res) => {
     description ||
     `Collaboratively authored in DevCollab live room by ${session.contributors.map((c) => c.name).join(', ')}.`;
 
-  const review = await Review.create({
+  let review;
+  const reviewPayload = {
     project: session.project,
     author: req.user._id,
     title: reviewTitle,
     description: reviewDescription,
     code: session.code,
-    language: session.language,
-    domain: session.domain,
+    language: session.language || 'javascript',
+    domain: session.domain || 'general',
     status: 'open',
     reviewers: otherContributors,
-  });
+  };
+
+  try {
+    review = await Review.create(reviewPayload);
+  } catch (err) {
+    if (err?.message?.includes('language override unsupported')) {
+      // Auto-heal legacy text index in MongoDB
+      try {
+        await Review.collection.dropIndexes();
+        await Review.syncIndexes();
+      } catch (e) {}
+      review = await Review.create(reviewPayload);
+    } else {
+      throw err;
+    }
+  }
 
   await review.populate('author', 'name avatar email');
 

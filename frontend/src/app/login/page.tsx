@@ -30,7 +30,6 @@ export default function LoginPage() {
   const [unverifiedData, setUnverifiedData] = useState<{
     userId?: string;
     email?: string;
-    devOtp?: string;
   } | null>(null);
 
   useEffect(() => {
@@ -52,8 +51,7 @@ export default function LoginPage() {
       const payload = result.payload as any;
       const userId = payload.userId || '';
       const email = payload.email || data.email;
-      const devOtp = payload.devOtp || '';
-      setUnverifiedData({ userId, email, devOtp });
+      setUnverifiedData({ userId, email });
     } else {
       const errMessage =
         (result.payload as string) ||
@@ -64,11 +62,10 @@ export default function LoginPage() {
 
   const goToVerify = () => {
     if (!unverifiedData) return;
-    const { userId, email, devOtp } = unverifiedData;
+    const { userId, email } = unverifiedData;
     const params = new URLSearchParams();
     if (userId) params.set('userId', userId);
     if (email) params.set('email', email);
-    if (devOtp) params.set('devOtp', devOtp);
     router.push(`/verify-otp?${params.toString()}`);
   };
 

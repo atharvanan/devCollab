@@ -41,7 +41,6 @@ exports.register = catchAsync(async (req, res) => {
       data: {
         userId: user._id,
         email: user.email,
-        ...(isDev && { devOtp: otp }),
       },
     });
   }
@@ -61,7 +60,6 @@ exports.register = catchAsync(async (req, res) => {
     data: {
       userId: user._id,
       email: user.email,
-      ...(isDev && { devOtp: otp }),
     },
   });
 });
@@ -110,7 +108,6 @@ exports.resendOTP = catchAsync(async (req, res) => {
     data: {
       userId: user._id,
       email: user.email,
-      ...(isDev && { devOtp: otp }),
     },
   });
 });
@@ -139,7 +136,6 @@ exports.login = catchAsync(async (req, res) => {
       data: {
         userId: user._id,
         email: user.email,
-        ...(isDev && { devOtp: otp }),
       },
     });
   }
@@ -229,7 +225,6 @@ exports.forgotPassword = catchAsync(async (req, res) => {
     message: 'If an account exists with this email, a password reset code has been sent.',
     data: {
       email: user.email,
-      ...(isDev && { devOtp: otp }),
     },
   });
 });

@@ -41,7 +41,6 @@ export default function ResetPasswordPage() {
   const { toast } = useToast();
 
   const queryEmail = searchParams.get('email') || '';
-  const queryDevOtp = searchParams.get('devOtp') || '';
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -59,7 +58,7 @@ export default function ResetPasswordPage() {
     resolver: zodResolver(schema),
     defaultValues: {
       email: queryEmail,
-      otp: queryDevOtp,
+      otp: '',
       password: '',
       confirmPassword: '',
     },
@@ -67,11 +66,10 @@ export default function ResetPasswordPage() {
 
   const enteredPassword = watch('password') || '';
 
-  // Auto-fill query params when URL is parsed
+  // Auto-fill query email when URL is parsed
   useEffect(() => {
     if (queryEmail) setValue('email', queryEmail);
-    if (queryDevOtp) setValue('otp', queryDevOtp);
-  }, [queryEmail, queryDevOtp, setValue]);
+  }, [queryEmail, setValue]);
 
   // Resend countdown timer
   useEffect(() => {
@@ -127,9 +125,7 @@ export default function ResetPasswordPage() {
 
     setResending(true);
     try {
-      const res = await apiClient.post('/auth/forgot-password', { email });
-      const devOtp = res.data?.data?.devOtp;
-      if (devOtp) setValue('otp', devOtp);
+      await apiClient.post('/auth/forgot-password', { email });
       toast.success('A new verification code has been dispatched to your email.');
       setCountdown(60);
     } catch (err: any) {
@@ -160,20 +156,6 @@ export default function ResetPasswordPage() {
             </p>
           </div>
         </div>
-
-        {/* Development Helper Badge if devOtp present */}
-        {queryDevOtp && (
-          <div className="p-3 rounded-xl bg-primary/10 border border-primary/25 text-xs text-primary flex items-center justify-between">
-            <span>Dev Code Detected: <strong className="font-mono tracking-wider">{queryDevOtp}</strong></span>
-            <button
-              type="button"
-              onClick={() => setValue('otp', queryDevOtp)}
-              className="text-[11px] underline font-semibold"
-            >
-              Fill Code
-            </button>
-          </div>
-        )}
 
         {/* Card Form */}
         <div className="p-6 sm:p-7 rounded-2xl border border-border/80 bg-card/90 backdrop-blur-md shadow-xl shadow-black/5">

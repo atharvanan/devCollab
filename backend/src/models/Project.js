@@ -32,7 +32,11 @@ const projectSchema = new mongoose.Schema(
     visibility: { type: String, enum: ['public', 'private'], default: 'private' },
     tags: [{ type: String, trim: true }],
     coverImage: { type: String, default: '' },
-    status: { type: String, enum: ['active', 'archived'], default: 'active' },
+    status: {
+      type: String,
+      enum: ['active', 'on_hold', 'completed', 'archived'],
+      default: 'active',
+    },
   },
   { timestamps: true }
 );

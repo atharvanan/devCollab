@@ -139,12 +139,10 @@ export default function SettingsPage() {
 
     setResetCodeLoading(true);
     try {
-      const res = await apiClient.post('/auth/forgot-password', { email: user.email });
-      const devOtp = res.data?.data?.devOtp;
+      await apiClient.post('/auth/forgot-password', { email: user.email });
       toast.success('Password reset verification code sent to your email!');
 
       const params = new URLSearchParams({ email: user.email });
-      if (devOtp) params.set('devOtp', devOtp);
 
       setTimeout(() => {
         router.push(`/reset-password?${params.toString()}`);

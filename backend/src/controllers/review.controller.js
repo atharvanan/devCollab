@@ -33,13 +33,35 @@ exports.createReview = catchAsync(async (req, res) => {
     );
   }
 
-  const review = await Review.create({
-    project: projectId, author: req.user._id,
-    title, description, code, language, domain,
-  });
+  let review;
+  const reviewPayload = {
+    project: projectId,
+    author: req.user._id,
+    title,
+    description,
+    code,
+    language: language || 'javascript',
+    domain: domain || 'general',
+  };
+
+  try {
+    review = await Review.create(reviewPayload);
+  } catch (err) {
+    if (err?.message?.includes('language override unsupported')) {
+      try {
+        await Review.collection.dropIndexes();
+        await Review.syncIndexes();
+      } catch (e) {}
+      review = await Review.create(reviewPayload);
+    } else {
+      throw err;
+    }
+  }
   await review.populate('author', 'name avatar email');
 
-  getIO().to(`project:${projectId}`).emit('review:created', review);
+  try {
+    getIO().to(`project:${projectId}`).emit('review:created', review);
+  } catch (e) {}
   res.status(201).json({ success: true, data: { review } });
 });
 

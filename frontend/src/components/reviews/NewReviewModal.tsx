@@ -8,7 +8,29 @@ import { apiClient } from '@/lib/apiClient';
 import { useToast } from '@/components/ui/Toast';
 import { DOMAINS, ROLE_LABELS } from '@/lib/utils';
 
-const LANGUAGES = ['javascript', 'typescript', 'python', 'java', 'go', 'rust', 'css', 'html', 'sql', 'yaml', 'dockerfile'];
+const LANGUAGES = [
+  'javascript',
+  'typescript',
+  'jsx',
+  'tsx',
+  'python',
+  'java',
+  'cpp',
+  'csharp',
+  'go',
+  'rust',
+  'html',
+  'css',
+  'sql',
+  'json',
+  'yaml',
+  'dockerfile',
+  'php',
+  'ruby',
+  'swift',
+  'kotlin',
+  'shell',
+];
 
 const ROLE_ALLOWED_DOMAINS: Record<string, string[]> = {
   frontend_developer: ['frontend'],

@@ -68,11 +68,23 @@ exports.updateProject = catchAsync(async (req, res) => {
 exports.deleteProject = catchAsync(async (req, res) => {
   const project = await Project.findById(req.params.id);
   if (!project) throw new AppError('Project not found', 404);
-  if (project.owner.toString() !== req.user._id.toString()) {
+  if (project.owner.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
     throw new AppError('Only the project owner can delete this project', 403);
   }
-  await project.deleteOne();
-  res.json({ success: true, message: 'Project deleted' });
+
+  const projectId = project._id;
+  const Task = require('../models/Task');
+  const Review = require('../models/Review');
+  const CollabSession = require('../models/CollabSession');
+
+  await Promise.all([
+    project.deleteOne(),
+    Task.deleteMany({ project: projectId }).catch(() => {}),
+    Review.deleteMany({ project: projectId }).catch(() => {}),
+    CollabSession.deleteMany({ project: projectId }).catch(() => {}),
+  ]);
+
+  res.json({ success: true, message: 'Project and all associated resources deleted successfully' });
 });
 
 exports.inviteMember = catchAsync(async (req, res) => {
@@ -172,4 +184,103 @@ exports.resolveSecurityAudit = catchAsync(async (req, res) => {
   await audit.populate('resolvedBy', 'name email');
 
   res.json({ success: true, message: 'Security violation marked as resolved', data: { audit } });
+});
+
+const TEST_BOTS = [
+  {
+    name: 'Alex Chen (Frontend)',
+    email: 'alex.frontend@devcollab.com',
+    password: 'DevCollab123!',
+    role: 'frontend_developer',
+    bio: 'Senior Frontend Engineer specializing in Next.js, React, Tailwind, and WebSockets.',
+  },
+  {
+    name: 'Sarah Connor (Backend)',
+    email: 'sarah.backend@devcollab.com',
+    password: 'DevCollab123!',
+    role: 'backend_developer',
+    bio: 'Distributed Systems & API Specialist with Node.js, Express, and MongoDB.',
+  },
+  {
+    name: 'David Miller (QA Tester)',
+    email: 'david.qa@devcollab.com',
+    password: 'DevCollab123!',
+    role: 'qa_tester',
+    bio: 'Lead QA Automation Engineer focusing on E2E testing, Jest, and edge case discovery.',
+  },
+  {
+    name: 'Emma Watson (UI/UX)',
+    email: 'emma.designer@devcollab.com',
+    password: 'DevCollab123!',
+    role: 'ui_ux_designer',
+    bio: 'Product Designer dedicated to accessible typography, dark mode ergonomics, and micro-interactions.',
+  },
+  {
+    name: 'Lucas Vance (DevOps)',
+    email: 'lucas.devops@devcollab.com',
+    password: 'DevCollab123!',
+    role: 'devops',
+    bio: 'Cloud & Infrastructure Architect managing Docker, CI/CD pipelines, and cluster health.',
+  },
+];
+
+exports.seedProjectBots = catchAsync(async (req, res) => {
+  const project = await Project.findById(req.params.id);
+  if (!project) throw new AppError('Project not found', 404);
+  if (!project.isProjectManager(req.user._id)) {
+    throw new AppError('Only the project owner or manager can add test bots', 403);
+  }
+
+  const seededBots = [];
+  for (const bot of TEST_BOTS) {
+    let user = await User.findOne({ email: bot.email });
+    if (!user) {
+      user = await User.create({
+        name: bot.name,
+        email: bot.email,
+        password: bot.password,
+        bio: bot.bio,
+        isVerified: true,
+      });
+    }
+
+    // Add to project if not already a member
+    const existing = project.members.find(
+      (m) => (m.user?._id || m.user).toString() === user._id.toString()
+    );
+    if (!existing) {
+      project.members.push({ user: user._id, role: bot.role });
+    }
+
+    seededBots.push({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: bot.role,
+      password: bot.password,
+    });
+  }
+
+  await project.save();
+  await project.populate('members.user', 'name email avatar');
+
+  res.json({
+    success: true,
+    message: 'Test bots successfully added to this project!',
+    data: { project, bots: seededBots },
+  });
+});
+
+exports.getBotCredentials = catchAsync(async (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      bots: TEST_BOTS.map((b) => ({
+        name: b.name,
+        email: b.email,
+        password: b.password,
+        role: b.role,
+      })),
+    },
+  });
 });

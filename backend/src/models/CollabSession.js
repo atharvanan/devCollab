@@ -18,6 +18,15 @@ const lineAttributionSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
+const sessionMessageSchema = new mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  name: { type: String, required: true },
+  role: { type: String, default: 'contributor' },
+  avatar: { type: String, default: '' },
+  content: { type: String, required: true, trim: true, maxlength: 1000 },
+  timestamp: { type: Date, default: Date.now },
+});
+
 const collabSessionSchema = new mongoose.Schema(
   {
     project: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', required: true },
@@ -41,6 +50,7 @@ const collabSessionSchema = new mongoose.Schema(
     },
     contributors: [contributorSchema],
     lineAttributions: [lineAttributionSchema],
+    messages: [sessionMessageSchema],
     lastEditor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     history: [
       {

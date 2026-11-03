@@ -11,6 +11,7 @@ router.post('/project/:projectId', collabController.createSession);
 // Individual session operations
 router.get('/:sessionId', collabController.getSession);
 router.put('/:sessionId/code', collabController.updateSessionCode);
+router.post('/:sessionId/messages', collabController.sendSessionMessage);
 router.post('/:sessionId/export-review', collabController.exportToReview);
 router.delete('/:sessionId', collabController.deleteSession);
 

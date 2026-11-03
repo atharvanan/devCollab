@@ -46,6 +46,7 @@ export function TaskDetailModal({ task, isPM, currentUserId, onClose }: Props) {
   const [resolutionNotes, setResolutionNotes] = useState(task.resolutionNotes || '');
   const [pmFeedback, setPmFeedback] = useState('');
   const [showRejectInput, setShowRejectInput] = useState(false);
+  const [newComment, setNewComment] = useState('');
 
   const isAssignee = task.assignees?.some(
     (a: any) => (a._id || a).toString() === currentUserId?.toString()
@@ -117,6 +118,26 @@ export function TaskDetailModal({ task, isPM, currentUserId, onClose }: Props) {
       onClose();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to review ticket');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 4. Add Comment / Update Note to Activity
+  const handleAddComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newComment.trim()) return;
+    try {
+      setLoading(true);
+      const res = await apiClient.post(`/board/tasks/${task._id}/comments`, {
+        message: newComment.trim(),
+      });
+      const updated = res.data.data.task;
+      dispatch(boardActions.updateTask(updated));
+      setNewComment('');
+      toast.success('Note added to ticket!');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to add comment');
     } finally {
       setLoading(false);
     }
@@ -300,12 +321,13 @@ export function TaskDetailModal({ task, isPM, currentUserId, onClose }: Props) {
           )}
 
           {/* Activity / Notes Thread */}
-          {activityNotes.length > 0 && (
-            <div className="space-y-3 pt-2 border-t border-border/70">
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <MessageSquare className="w-3.5 h-3.5" /> Ticket Activity & Feedback History
-              </h3>
-              <div className="space-y-2.5">
+          <div className="space-y-3 pt-2 border-t border-border/70">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <MessageSquare className="w-3.5 h-3.5" /> Ticket Activity & Team Notes
+            </h3>
+
+            {activityNotes.length > 0 ? (
+              <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
                 {activityNotes.map((act: any, idx: number) => (
                   <div
                     key={idx}
@@ -326,8 +348,24 @@ export function TaskDetailModal({ task, isPM, currentUserId, onClose }: Props) {
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-xs text-muted-foreground italic">No notes recorded yet.</p>
+            )}
+
+            {/* Quick Comment Form */}
+            <form onSubmit={handleAddComment} className="flex items-center gap-2 pt-1">
+              <input
+                type="text"
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Post a note, QA test result, or question on this ticket..."
+                className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <Button type="submit" size="sm" loading={loading} disabled={!newComment.trim()}>
+                <Send className="w-3.5 h-3.5 mr-1" /> Post Note
+              </Button>
+            </form>
+          </div>
 
           {/* SECTION: Developer Action Area (Submit Work / Feedback) */}
           {canWorkOnTask && task.column !== 'done' && (

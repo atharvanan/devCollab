@@ -1,6 +1,7 @@
 const { Server } = require('socket.io');
 const { verifyAccessToken } = require('../utils/jwt');
 const User = require('../models/User');
+const CollabSession = require('../models/CollabSession');
 const logger = require('../utils/logger');
 
 let io;
@@ -69,13 +70,16 @@ const initSocket = (server) => {
     // ==========================================
     // Real-Time Collaborative Coding Workspace
     // ==========================================
-    socket.on('collab:join', ({ sessionId }) => {
+    socket.on('collab:join', ({ sessionId }, callback) => {
       if (!sessionId) return;
       const room = `collab:${sessionId}`;
       socket.join(room);
       socket.collabRoom = sessionId;
 
       logger.info(`[COLLAB] ${socket.user.name} joined ${room}`);
+
+      socket.emit('collab:joined', { sessionId });
+      if (typeof callback === 'function') callback({ success: true, room });
 
       // Notify others in the room
       socket.to(room).emit('collab:userJoined', {
@@ -137,6 +141,31 @@ const initSocket = (server) => {
         isTyping,
         line,
       });
+    });
+
+    // Real-Time Pair Coding Chat Message
+    socket.on('collab:chat', async ({ sessionId, message }) => {
+      if (!sessionId || !message || !message.trim()) return;
+      const room = `collab:${sessionId}`;
+      const chatItem = {
+        _id: new Date().getTime().toString() + Math.random().toString(36).substring(2, 7),
+        user: socket.user._id,
+        name: socket.user.name,
+        avatar: socket.user.avatar || '',
+        role: socket.user.role || 'member',
+        content: message.trim(),
+        timestamp: new Date(),
+      };
+
+      try {
+        await CollabSession.findByIdAndUpdate(sessionId, {
+          $push: { messages: chatItem },
+        });
+      } catch (err) {
+        logger.error(`Error saving collab chat: ${err.message}`);
+      }
+
+      io.to(room).emit('collab:chatMessage', chatItem);
     });
 
     socket.on('disconnect', () => {

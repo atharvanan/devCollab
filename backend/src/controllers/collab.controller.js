@@ -367,3 +367,45 @@ exports.deleteSession = catchAsync(async (req, res) => {
   res.json({ success: true, message: 'Collaborative session deleted' });
 });
 
+/**
+ * Send a chat message in a collaborative session
+ */
+exports.sendSessionMessage = catchAsync(async (req, res) => {
+  const { sessionId } = req.params;
+  const { content } = req.body;
+  if (!content || !content.trim()) {
+    throw new AppError('Message content is required', 400);
+  }
+
+  const session = await CollabSession.findById(sessionId);
+  if (!session) throw new AppError('Session not found', 404);
+
+  const project = await Project.findById(session.project);
+  if (!project || !project.isMember(req.user._id)) {
+    throw new AppError('Access denied', 403);
+  }
+
+  const userRole = project.getUserRole(req.user._id) || 'contributor';
+  const messageItem = {
+    user: req.user._id,
+    name: req.user.name,
+    avatar: req.user.avatar || '',
+    role: userRole,
+    content: content.trim(),
+    timestamp: new Date(),
+  };
+
+  session.messages = session.messages || [];
+  session.messages.push(messageItem);
+  await session.save();
+
+  try {
+    getIO().to(`collab:${sessionId}`).emit('collab:chatMessage', messageItem);
+  } catch (e) {}
+
+  res.status(201).json({
+    success: true,
+    data: { message: messageItem },
+  });
+});
+

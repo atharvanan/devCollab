@@ -327,3 +327,72 @@ exports.deleteTask = catchAsync(async (req, res) => {
   getIO().to(`project:${projectId}`).emit('task:deleted', { taskId: req.params.taskId });
   res.json({ success: true, message: 'Task deleted' });
 });
+
+exports.addTaskComment = catchAsync(async (req, res) => {
+  const { taskId } = req.params;
+  const { message } = req.body;
+  if (!message || !message.trim()) {
+    throw new AppError('Comment message is required', 400);
+  }
+
+  const task = await Task.findById(taskId);
+  if (!task) throw new AppError('Task not found', 404);
+
+  const project = await Project.findById(task.project);
+  if (!project) throw new AppError('Project not found', 404);
+  if (!project.isMember(req.user._id)) throw new AppError('Access denied', 403);
+
+  const userRole = project.getUserRole(req.user._id) || (project.owner.toString() === req.user._id.toString() ? 'project_manager' : 'member');
+
+  task.activityNotes = task.activityNotes || [];
+  const note = {
+    author: req.user._id,
+    authorName: req.user.name,
+    role: userRole,
+    action: 'comment',
+    message: message.trim(),
+    createdAt: new Date(),
+  };
+  task.activityNotes.push(note);
+
+  await task.save();
+  await task.populate('assignees', 'name avatar email');
+  await task.populate('createdBy', 'name avatar');
+  await task.populate('managerReview.reviewedBy', 'name avatar');
+  await task.populate('activityNotes.author', 'name avatar');
+
+  try {
+    getIO().to(`project:${task.project}`).emit('task:updated', task);
+  } catch (e) {}
+
+  // Notify assignees and PM if someone else commented
+  const recipients = new Set();
+  task.assignees.forEach((a) => recipients.add((a._id || a).toString()));
+  if (project.owner) recipients.add(project.owner.toString());
+  project.members?.filter((m) => m.role === 'project_manager').forEach((m) => recipients.add(m.user.toString()));
+  recipients.delete(req.user._id.toString());
+
+  const notifications = Array.from(recipients).map((rId) => ({
+    recipient: rId,
+    sender: req.user._id,
+    type: 'task_comment',
+    title: 'New note on task',
+    message: `${req.user.name} commented on "${task.title}": "${message.trim().slice(0, 80)}"`,
+    link: `/projects/${project._id}?tab=board`,
+  }));
+
+  if (notifications.length > 0) {
+    try {
+      await Notification.insertMany(notifications);
+      notifications.forEach((n) => {
+        getIO().to(`user:${n.recipient}`).emit('notification:new', { type: 'task_comment' });
+      });
+    } catch (e) {}
+  }
+
+  res.status(201).json({
+    success: true,
+    message: 'Comment added to task',
+    data: { task, note },
+  });
+});

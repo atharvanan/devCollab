@@ -16,6 +16,8 @@ import {
   Maximize2,
   Minimize2,
   Layers,
+  MessageSquare,
+  Send,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge, Avatar } from '@/components/ui/Card';
@@ -24,7 +26,7 @@ import { getSocket } from '@/lib/socket';
 import { useToast } from '@/components/ui/Toast';
 import { useAppSelector } from '@/hooks/useRedux';
 import { ShareMetrics, Contributor } from './ShareMetrics';
-import { cn, CONTRIBUTOR_COLORS, ROLE_LABELS, DOMAINS } from '@/lib/utils';
+import { cn, CONTRIBUTOR_COLORS, ROLE_LABELS, DOMAINS, formatRelativeTime } from '@/lib/utils';
 
 interface Props {
   session: any;
@@ -79,11 +81,15 @@ export function CollaborativeEditor({ session, project, onSessionUpdated, onRevi
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [exportTitle, setExportTitle] = useState(`Review: ${session?.title || 'Shared Code'}`);
 
-  // Runner state
+  // Runner & Chat state
   const [running, setRunning] = useState(false);
   const [runnerOutput, setRunnerOutput] = useState<string | null>(null);
   const [showConsole, setShowConsole] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const [messages, setMessages] = useState<any[]>(session?.messages || []);
+  const [chatInput, setChatInput] = useState('');
+  const [showChat, setShowChat] = useState(true);
+  const chatMessagesEndRef = useRef<HTMLDivElement>(null);
 
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const socketRef = useRef(getSocket());
@@ -150,11 +156,22 @@ export function CollaborativeEditor({ session, project, onSessionUpdated, onRevi
       }
     };
 
+    const handleChatMessage = (msg: any) => {
+      setMessages((prev) => {
+        if (prev.some((m) => m._id === msg._id)) return prev;
+        return [...prev, msg];
+      });
+      setTimeout(() => {
+        chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 50);
+    };
+
     socket.on('collab:userJoined', handleUserJoined);
     socket.on('collab:userLeft', handleUserLeft);
     socket.on('collab:codeSync', handleCodeSync);
     socket.on('collab:cursorMoved', handleCursorMoved);
     socket.on('collab:userTyping', handleUserTyping);
+    socket.on('collab:chatMessage', handleChatMessage);
     socket.on('collab:updated', handleSessionUpdated);
 
     return () => {
@@ -164,6 +181,7 @@ export function CollaborativeEditor({ session, project, onSessionUpdated, onRevi
       socket.off('collab:codeSync', handleCodeSync);
       socket.off('collab:cursorMoved', handleCursorMoved);
       socket.off('collab:userTyping', handleUserTyping);
+      socket.off('collab:chatMessage', handleChatMessage);
       socket.off('collab:updated', handleSessionUpdated);
     };
   }, [sessionId, user?._id, toast]);
@@ -249,6 +267,20 @@ export function CollaborativeEditor({ session, project, onSessionUpdated, onRevi
     setCopied(true);
     toast.success('Code copied to clipboard!');
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  // 5b. Send Live Chat Message
+  const handleSendChatMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim() || !sessionId) return;
+    const text = chatInput.trim();
+    setChatInput('');
+
+    // Emit via socket for instant live broadcast
+    socketRef.current.emit('collab:chat', {
+      sessionId,
+      message: text,
+    });
   };
 
   // 6. 1-Click Export to Code Review
@@ -387,6 +419,25 @@ export function CollaborativeEditor({ session, project, onSessionUpdated, onRevi
             </button>
 
             <button
+              onClick={() => setShowChat((v) => !v)}
+              className={cn(
+                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-colors shadow-xs',
+                showChat
+                  ? 'bg-sky-600 text-white border-sky-500'
+                  : 'bg-[#1e2337] text-[#94a3b8] border-[#2b324d] hover:text-white'
+              )}
+              title="Toggle Real-Time Team Chat"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>Team Chat</span>
+              {messages.length > 0 && (
+                <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] bg-sky-950/80 text-sky-200 font-bold border border-sky-400/30">
+                  {messages.length}
+                </span>
+              )}
+            </button>
+
+            <button
               onClick={() => setExportModalOpen(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition-colors shadow-xs"
               title="Convert this code into a project Code Review"
@@ -426,48 +477,118 @@ export function CollaborativeEditor({ session, project, onSessionUpdated, onRevi
           </div>
         )}
 
-        {/* Code Editor Body */}
-        <div className="relative flex font-mono text-xs sm:text-sm min-h-[380px] max-h-[560px] overflow-hidden">
-          {/* Gutter / Line Numbers & Line Attribution */}
-          <div className="w-12 sm:w-16 shrink-0 bg-[#0d101d] text-[#555e7d] py-3 select-none border-r border-[#212638] text-right pr-2 sm:pr-3 space-y-[2px]">
-            {lines.map((_, idx) => {
-              const lineNum = idx + 1;
-              const isCurrent = activeLine === lineNum;
-              const attr = lineAttributions.find((l) => l.lineNumber === lineNum);
+        {/* Code Editor Body & Team Chat */}
+        <div className="relative flex flex-col lg:flex-row min-h-[400px] max-h-[580px] overflow-hidden">
+          {/* Main Code Editor Panel */}
+          <div className="flex-1 flex font-mono text-xs sm:text-sm min-h-[360px] overflow-hidden">
+            {/* Gutter / Line Numbers & Line Attribution */}
+            <div className="w-12 sm:w-16 shrink-0 bg-[#0d101d] text-[#555e7d] py-3 select-none border-r border-[#212638] text-right pr-2 sm:pr-3 space-y-[2px]">
+              {lines.map((_, idx) => {
+                const lineNum = idx + 1;
+                const isCurrent = activeLine === lineNum;
+                const attr = lineAttributions.find((l) => l.lineNumber === lineNum);
 
-              return (
-                <div
-                  key={idx}
-                  title={attr ? `Authored by: ${attr.authorName}` : `Line ${lineNum}`}
-                  className={cn(
-                    'leading-5 flex items-center justify-end gap-1 transition-colors',
-                    isCurrent && 'text-primary font-bold',
-                    attr && 'cursor-help'
-                  )}
-                >
-                  {attr && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
-                  )}
-                  <span>{lineNum}</span>
-                </div>
-              );
-            })}
+                return (
+                  <div
+                    key={idx}
+                    title={attr ? `Authored by: ${attr.authorName}` : `Line ${lineNum}`}
+                    className={cn(
+                      'leading-5 flex items-center justify-end gap-1 transition-colors',
+                      isCurrent && 'text-primary font-bold',
+                      attr && 'cursor-help'
+                    )}
+                  >
+                    {attr && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
+                    )}
+                    <span>{lineNum}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Interactive Editable Code Surface */}
+            <textarea
+              ref={editorRef}
+              value={code}
+              onChange={(e) => handleCodeChange(e.target.value)}
+              onKeyUp={handleCursorChange}
+              onClick={handleCursorChange}
+              onSelect={handleCursorChange}
+              spellCheck={false}
+              autoCapitalize="off"
+              autoComplete="off"
+              className="flex-1 bg-transparent text-[#e2e8f0] p-3 leading-5 resize-none focus:outline-none overflow-auto font-mono text-xs sm:text-sm selection:bg-indigo-500/30 whitespace-pre"
+              placeholder="// Type or paste your code here. Connected developers see changes in real-time."
+            />
           </div>
 
-          {/* Interactive Editable Code Surface */}
-          <textarea
-            ref={editorRef}
-            value={code}
-            onChange={(e) => handleCodeChange(e.target.value)}
-            onKeyUp={handleCursorChange}
-            onClick={handleCursorChange}
-            onSelect={handleCursorChange}
-            spellCheck={false}
-            autoCapitalize="off"
-            autoComplete="off"
-            className="flex-1 bg-transparent text-[#e2e8f0] p-3 leading-5 resize-none focus:outline-none overflow-auto font-mono text-xs sm:text-sm selection:bg-indigo-500/30 whitespace-pre"
-            placeholder="// Type or paste your code here. Connected developers see changes in real-time."
-          />
+          {/* Real-time Team Chat Drawer */}
+          {showChat && (
+            <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-[#212638] bg-[#0e111d] flex flex-col text-xs font-sans">
+              <div className="px-3.5 py-2.5 bg-[#0a0d18] border-b border-[#1f2538] flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-3.5 h-3.5 text-sky-400" />
+                  <span className="font-semibold text-white">Live Session Chat</span>
+                </div>
+                <span className="text-[10px] text-[#94a3b8]">
+                  {activeUsers.length + 1} online
+                </span>
+              </div>
+
+              {/* Chat Messages Stream */}
+              <div className="flex-1 p-3 overflow-y-auto space-y-2.5 max-h-[280px] lg:max-h-none">
+                {messages.length === 0 ? (
+                  <div className="text-center py-8 text-[#64748b] space-y-1">
+                    <p className="font-medium text-xs">No messages yet</p>
+                    <p className="text-[10px]">Chat in real-time with teammates while pair programming.</p>
+                  </div>
+                ) : (
+                  messages.map((m: any, idx: number) => {
+                    const isMe = (m.user?._id || m.user)?.toString() === user?._id?.toString();
+                    return (
+                      <div
+                        key={idx}
+                        className={cn(
+                          'p-2.5 rounded-lg text-xs space-y-1',
+                          isMe
+                            ? 'bg-sky-500/10 border border-sky-500/20 ml-2'
+                            : 'bg-[#161a2c] border border-[#232840] mr-2'
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-1 text-[10px] text-[#94a3b8]">
+                          <span className={cn('font-semibold', isMe ? 'text-sky-300' : 'text-slate-200')}>
+                            {m.name || 'Collaborator'} {isMe && '(You)'}
+                          </span>
+                          <span>{formatRelativeTime(m.timestamp || m.createdAt)}</span>
+                        </div>
+                        <p className="text-white whitespace-pre-wrap break-words">{m.content || m.message}</p>
+                      </div>
+                    );
+                  })
+                )}
+                <div ref={chatMessagesEndRef} />
+              </div>
+
+              {/* Chat Input Box */}
+              <form onSubmit={handleSendChatMessage} className="p-2 border-t border-[#1f2538] bg-[#0a0d18] flex gap-1.5">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Message team..."
+                  className="flex-1 bg-[#161a2c] text-white placeholder-[#64748b] text-xs px-2.5 py-1.5 rounded-md border border-[#2b3352] focus:outline-none focus:ring-1 focus:ring-sky-500"
+                />
+                <button
+                  type="submit"
+                  disabled={!chatInput.trim()}
+                  className="px-2.5 py-1.5 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-white rounded-md transition-colors"
+                >
+                  <Send className="w-3 h-3" />
+                </button>
+              </form>
+            </div>
+          )}
         </div>
 
         {/* Console / Runner Output Drawer */}

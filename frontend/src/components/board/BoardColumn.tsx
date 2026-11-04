@@ -1,6 +1,6 @@
 'use client';
 import { useDroppable } from '@dnd-kit/core';
-import { Plus } from 'lucide-react';
+import { Plus, Lock } from 'lucide-react';
 import { TaskCard } from './TaskCard';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +25,14 @@ export function BoardColumn({ id, title, tasks, onAddTask, isPM, currentUserId }
           <span className="text-[11px] font-mono text-muted-foreground bg-secondary/80 border border-border/50 font-semibold rounded-full px-2 py-0.5">
             {tasks.length}
           </span>
+          {id === 'done' && !isPM && (
+            <span
+              className="text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded flex items-center gap-1"
+              title="Compliance Rule: Only Project Managers can approve and close tickets into Done"
+            >
+              <Lock className="w-2.5 h-2.5" /> PM Only
+            </span>
+          )}
         </h3>
         <button
           onClick={onAddTask}

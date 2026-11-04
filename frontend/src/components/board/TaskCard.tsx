@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Calendar, CheckSquare, Square, ShieldAlert, CheckCircle2, RotateCcw, MessageSquare, Maximize2 } from 'lucide-react';
+import { Calendar, CheckSquare, Square, ShieldAlert, CheckCircle2, RotateCcw, MessageSquare, Maximize2, Clock, Lock } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Avatar } from '@/components/ui/Card';
 import { PRIORITY_COLORS, ROLE_LABELS, ROLE_COLORS, formatDate, cn } from '@/lib/utils';
@@ -28,20 +28,23 @@ export function TaskCard({
   const [feedback, setFeedback] = useState('');
   const [detailModalOpen, setDetailModalOpen] = useState(false);
 
+  const isAssignee = task.assignees?.some(
+    (a: any) => (a._id || a).toString() === currentUserId?.toString()
+  );
+  const canToggleDone = isAssignee || isPM;
+  const isDragDisabled = !isPM && (task.column === 'review' || !isAssignee);
+
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task._id,
+    disabled: isDragDisabled,
   });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+    cursor: isDragDisabled ? 'default' : 'grab',
   };
-
-  const isAssignee = task.assignees?.some(
-    (a: any) => (a._id || a).toString() === currentUserId?.toString()
-  );
-  const canToggleDone = isAssignee || isPM;
 
   const handleToggleComplete = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -133,7 +136,36 @@ export function TaskCard({
               {ROLE_LABELS[task.targetRole] || task.targetRole}
             </span>
           )}
+
+          {/* Under Review Lock Tag for Team Members */}
+          {task.column === 'review' && !isPM && (
+            <span
+              className="text-[10px] font-medium text-purple-600 dark:text-purple-400 bg-purple-500/10 border border-purple-500/20 px-1.5 py-0.5 rounded flex items-center gap-1"
+              title="Ticket is locked pending Project Manager review"
+            >
+              <Lock className="w-2.5 h-2.5" /> PM Review
+            </span>
+          )}
         </div>
+
+        {/* Real-Time Enterprise SLA Badge */}
+        {task.slaStatus && (
+          <div className="pt-0.5">
+            <span
+              className={cn(
+                'inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded border tracking-tight',
+                task.slaStatus.state === 'breached' && 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 animate-pulse',
+                task.slaStatus.state === 'at_risk' && 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30',
+                task.slaStatus.state === 'fulfilled' && 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+                task.slaStatus.state === 'healthy' && 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/30'
+              )}
+              title={`SLA Target: ${task.slaStatus.policy?.label || task.priority}. ${task.slaStatus.label}`}
+            >
+              <Clock className="w-2.5 h-2.5 shrink-0" />
+              <span>{task.slaStatus.label}</span>
+            </span>
+          </div>
+        )}
 
         {/* Description preview if present */}
         {task.description && (

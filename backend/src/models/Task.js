@@ -34,8 +34,19 @@ const taskSchema = new mongoose.Schema(
     attachments: [{ url: String, publicId: String, name: String }],
     linkedReview: { type: mongoose.Schema.Types.ObjectId, ref: 'Review' },
     completedByAssignee: { type: Boolean, default: false },
+    startedAt: { type: Date },
+    submittedAt: { type: Date },
     completedAt: { type: Date },
+    closedAt: { type: Date },
+    closedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     resolutionNotes: { type: String, default: '' },
+    sla: {
+      responseDeadline: { type: Date },
+      resolutionDeadline: { type: Date },
+      responseBreached: { type: Boolean, default: false },
+      resolutionBreached: { type: Boolean, default: false },
+      breachReason: { type: String, default: '' },
+    },
     activityNotes: [
       {
         author: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -55,6 +66,45 @@ const taskSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+taskSchema.pre('save', function (next) {
+  const { computeSlaDeadlines } = require('../utils/sla');
+
+  // Compute SLA deadlines if missing
+  if (!this.sla?.responseDeadline || !this.sla?.resolutionDeadline) {
+    const { responseDeadline, resolutionDeadline } = computeSlaDeadlines(this.priority, this.createdAt || new Date());
+    this.sla = this.sla || {};
+    this.sla.responseDeadline = this.sla.responseDeadline || responseDeadline;
+    this.sla.resolutionDeadline = this.sla.resolutionDeadline || resolutionDeadline;
+  }
+
+  // Auto-record transition milestones
+  if (['in_progress', 'review', 'done'].includes(this.column) && !this.startedAt) {
+    this.startedAt = new Date();
+  }
+  if (['review', 'done'].includes(this.column) && !this.submittedAt) {
+    this.submittedAt = new Date();
+  }
+  if (this.column === 'done') {
+    if (!this.completedAt) this.completedAt = new Date();
+    if (!this.closedAt) this.closedAt = new Date();
+  }
+
+  // Check SLA breach conditions
+  const now = new Date();
+  if (this.sla?.responseDeadline && !this.startedAt && now > this.sla.responseDeadline) {
+    this.sla.responseBreached = true;
+  }
+  if (this.sla?.resolutionDeadline) {
+    if (this.completedAt && this.completedAt > this.sla.resolutionDeadline) {
+      this.sla.resolutionBreached = true;
+    } else if (this.column !== 'done' && now > this.sla.resolutionDeadline) {
+      this.sla.resolutionBreached = true;
+    }
+  }
+
+  next();
+});
 
 taskSchema.index({ project: 1, column: 1, order: 1 });
 

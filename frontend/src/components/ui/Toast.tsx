@@ -31,12 +31,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addToast = useCallback((type: ToastType, message: string, title?: string) => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, type, title, message }]);
-
-    setTimeout(() => {
-      removeToast(id);
-    }, 4000);
+    setToasts((prev) => {
+      // Prevent stacking duplicate toast messages
+      if (prev.some((t) => t.message === message && t.type === type)) {
+        return prev;
+      }
+      const id = Math.random().toString(36).substring(2, 9);
+      setTimeout(() => {
+        removeToast(id);
+      }, 4000);
+      // Keep at most 3 toasts on screen simultaneously
+      return [...prev.slice(-2), { id, type, title, message }];
+    });
   }, [removeToast]);
 
   const toast = {

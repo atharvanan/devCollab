@@ -114,7 +114,7 @@ export function KanbanBoard({ projectId, project }: { projectId: string; project
   return (
     <div className="w-full max-w-full min-w-0">
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-3 pt-1 px-1 touch-pan-x scrollbar-thin">
+        <div className="flex gap-4 overflow-x-auto pb-3 pt-1 px-1 touch-pan-x scrollbar-none">
           {COLUMNS.map((col) => (
             <SortableContext
               key={col}

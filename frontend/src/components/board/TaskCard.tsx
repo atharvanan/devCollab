@@ -74,6 +74,7 @@ export function TaskCard({
       const res = await apiClient.patch(`/board/tasks/${task._id}/manager-review`, {
         status,
         feedback: feedback.trim(),
+        routeToColumn: 'in_progress',
       });
       const updatedTask = res.data.data.task;
       dispatch(boardActions.updateTask(updatedTask));

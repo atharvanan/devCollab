@@ -33,7 +33,7 @@ export default function DashboardPage() {
         return 0;
       }
     },
-    { refetchInterval: 5000 }
+    { refetchInterval: 30000, refetchOnWindowFocus: true }
   );
 
   return (

@@ -53,20 +53,32 @@ app.use(cors({
 
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || (process.env.NODE_ENV !== 'production' ? 10000 : 100),
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) > 500
+    ? parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10)
+    : 10000,
   message: { success: false, message: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    const ip = req.ip || req.connection?.remoteAddress || '';
+    const isLocal = ip.includes('127.0.0.1') || ip === '::1' || ip.includes('localhost') || ip === '::ffff:127.0.0.1';
+    return isLocal || process.env.NODE_ENV !== 'production';
+  },
 });
 app.use('/api/', limiter);
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX, 10) || (process.env.NODE_ENV !== 'production' ? 5000 : 30),
+  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX, 10) > 100
+    ? parseInt(process.env.AUTH_RATE_LIMIT_MAX, 10)
+    : 5000,
   message: { success: false, message: 'Too many auth attempts, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
+    const ip = req.ip || req.connection?.remoteAddress || '';
+    const isLocal = ip.includes('127.0.0.1') || ip === '::1' || ip.includes('localhost') || ip === '::ffff:127.0.0.1';
+    if (isLocal || process.env.NODE_ENV !== 'production') return true;
     const openPaths = ['/refresh', '/me', '/logout'];
     return openPaths.some((p) => req.path.endsWith(p));
   },

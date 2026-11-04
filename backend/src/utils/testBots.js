@@ -89,7 +89,8 @@ async function autoSeedBotsToProject(project) {
 async function ensureProjectAccess(project, user) {
   if (!project || !user) return false;
   const userId = (user._id || user).toString();
-  if (project.owner.toString() === userId) return true;
+  const ownerId = (project.owner?._id || project.owner)?.toString();
+  if (ownerId && ownerId === userId) return true;
 
   const isMember = project.members.some(
     (m) => (m.user?._id || m.user)?.toString() === userId
@@ -129,3 +130,4 @@ module.exports = {
   autoSeedBotsToProject,
   ensureProjectAccess,
 };
+

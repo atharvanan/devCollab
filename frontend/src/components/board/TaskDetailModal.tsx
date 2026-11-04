@@ -195,7 +195,7 @@ export function TaskDetailModal({ task, isPM, currentUserId, onClose }: Props) {
         </div>
 
         {/* Scrollable Content Body */}
-        <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1">
+        <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1 scrollbar-none">
           {/* Title */}
           <div>
             <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight leading-snug">

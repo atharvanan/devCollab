@@ -46,7 +46,8 @@ projectSchema.index({ name: 'text', description: 'text' });
 projectSchema.methods.isMember = function (userId) {
   if (!userId) return false;
   const uid = userId.toString();
-  if (this.owner && this.owner.toString() === uid) return true;
+  const ownerId = (this.owner?._id || this.owner)?.toString();
+  if (ownerId && ownerId === uid) return true;
   return Array.isArray(this.members) && this.members.some((m) => {
     const memberId = (m.user?._id ?? m.user)?.toString();
     return memberId === uid;
@@ -56,7 +57,8 @@ projectSchema.methods.isMember = function (userId) {
 projectSchema.methods.getUserRole = function (userId) {
   if (!userId) return null;
   const uid = userId.toString();
-  if (this.owner && this.owner.toString() === uid) return 'project_manager';
+  const ownerId = (this.owner?._id || this.owner)?.toString();
+  if (ownerId && ownerId === uid) return 'project_manager';
   if (!Array.isArray(this.members)) return null;
   const member = this.members.find((m) => {
     const memberId = (m.user?._id ?? m.user)?.toString();
@@ -66,8 +68,10 @@ projectSchema.methods.getUserRole = function (userId) {
 };
 
 projectSchema.methods.isProjectManager = function (userId) {
+  if (!userId) return false;
   const uid = userId.toString();
-  if (this.owner.toString() === uid) return true;
+  const ownerId = (this.owner?._id || this.owner)?.toString();
+  if (ownerId && ownerId === uid) return true;
   const role = this.getUserRole(uid);
   return role === 'project_manager' || role === 'admin';
 };

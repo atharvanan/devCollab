@@ -74,7 +74,7 @@ export default function ProjectDetailPage() {
   useJoinRoom(`project:${id}`);
 
   // Fetch project details
-  const { data: project, isLoading, refetch: refetchProject } = useQuery(
+  const { data: project, isLoading, isError, refetch: refetchProject } = useQuery(
     ['project', id],
     async () => {
       const res = await apiClient.get(`/projects/${id}`);
@@ -251,6 +251,27 @@ export default function ProjectDetailPage() {
           <div className="h-4 bg-muted rounded w-24" />
           <div className="h-8 bg-muted rounded w-1/3" />
           <div className="h-4 bg-muted/60 rounded w-1/2" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (isError && !isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="border border-dashed border-border rounded-2xl p-12 text-center space-y-4 max-w-lg mx-auto mt-8">
+          <div className="w-12 h-12 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
+            <Lock className="w-6 h-6" />
+          </div>
+          <h2 className="text-xl font-bold text-foreground">Project Access Restricted</h2>
+          <p className="text-sm text-muted-foreground">
+            You do not have access to this project, or it may have been removed. Please contact the Project Manager.
+          </p>
+          <Link href="/projects" className="inline-block">
+            <Button size="sm">
+              <ArrowLeft className="w-4 h-4 mr-1.5" /> Back to Projects
+            </Button>
+          </Link>
         </div>
       </DashboardLayout>
     );

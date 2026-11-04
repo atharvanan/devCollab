@@ -14,19 +14,7 @@ const catchAsync = require('../utils/catchAsync');
 
 const generateOTP = () => crypto.randomInt(100000, 999999).toString();
 
-const TEST_BOT_EMAILS = [
-  'alex.frontend@devcollab.com',
-  'sarah.backend@devcollab.com',
-  'david.qa@devcollab.com',
-  'emma.designer@devcollab.com',
-  'lucas.devops@devcollab.com',
-];
-
-const isTestBotEmail = (email) => {
-  if (!email) return false;
-  const clean = email.toLowerCase().trim();
-  return TEST_BOT_EMAILS.includes(clean) || clean.endsWith('@devcollab.com');
-};
+const { isTestBotEmail } = require('../utils/testBots');
 
 exports.register = catchAsync(async (req, res) => {
   const { name, email, password } = req.body;

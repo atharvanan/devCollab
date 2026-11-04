@@ -44,21 +44,22 @@ const projectSchema = new mongoose.Schema(
 projectSchema.index({ name: 'text', description: 'text' });
 
 projectSchema.methods.isMember = function (userId) {
+  if (!userId) return false;
   const uid = userId.toString();
-  return (
-    this.owner.toString() === uid ||
-    this.members.some((m) => {
-      const memberId = (m.user?._id ?? m.user).toString();
-      return memberId === uid;
-    })
-  );
+  if (this.owner && this.owner.toString() === uid) return true;
+  return Array.isArray(this.members) && this.members.some((m) => {
+    const memberId = (m.user?._id ?? m.user)?.toString();
+    return memberId === uid;
+  });
 };
 
 projectSchema.methods.getUserRole = function (userId) {
+  if (!userId) return null;
   const uid = userId.toString();
-  if (this.owner.toString() === uid) return 'project_manager';
+  if (this.owner && this.owner.toString() === uid) return 'project_manager';
+  if (!Array.isArray(this.members)) return null;
   const member = this.members.find((m) => {
-    const memberId = (m.user?._id ?? m.user).toString();
+    const memberId = (m.user?._id ?? m.user)?.toString();
     return memberId === uid;
   });
   return member ? member.role : null;

@@ -1,9 +1,17 @@
 const Project = require('../models/Project');
 const User = require('../models/User');
+const Task = require('../models/Task');
 const SecurityAudit = require('../models/SecurityAudit');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 const { ROLE_DISPLAY_NAMES } = require('../utils/roleCompliance');
+const {
+  TEST_BOTS,
+  isTestBotEmail,
+  ensureBotUser,
+  autoSeedBotsToProject,
+  ensureProjectAccess,
+} = require('../utils/testBots');
 
 exports.createProject = catchAsync(async (req, res) => {
   const { name, description, visibility, tags } = req.body;
@@ -12,18 +20,30 @@ exports.createProject = catchAsync(async (req, res) => {
     owner: req.user._id,
     members: [{ user: req.user._id, role: 'project_manager' }],
   });
+
+  // Automatically attach all test bot teammates so every role is ready to collaborate
+  await autoSeedBotsToProject(project).catch(() => {});
+
   res.status(201).json({ success: true, data: { project } });
 });
 
 exports.getProjects = catchAsync(async (req, res) => {
   const { search, page = 1, limit = 10 } = req.query;
-  const query = {
-    $or: [
-      { owner: req.user._id },
-      { 'members.user': req.user._id },
-      { visibility: 'public' },
-    ],
-  };
+  const isBot = isTestBotEmail(req.user.email);
+
+  // Find all projects where user has assigned tasks
+  const assignedTaskProjectIds = await Task.distinct('project', { assignees: req.user._id }).catch(() => []);
+
+  const query = isBot
+    ? {} // Test bots can view all projects in workspace for multi-user collaboration testing
+    : {
+        $or: [
+          { owner: req.user._id },
+          { 'members.user': req.user._id },
+          { _id: { $in: assignedTaskProjectIds } },
+          { visibility: 'public' },
+        ],
+      };
   if (search) query.$text = { $search: search };
 
   const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -47,9 +67,15 @@ exports.getProject = catchAsync(async (req, res) => {
     .populate('owner', 'name email avatar')
     .populate('members.user', 'name email avatar');
   if (!project) throw new AppError('Project not found', 404);
-  if (!project.isMember(req.user._id) && project.visibility !== 'public') {
+
+  const hasAccess = await ensureProjectAccess(project, req.user);
+  if (!hasAccess) {
     throw new AppError('Access denied', 403);
   }
+
+  // Refresh populated members in case auto-healing added the user
+  await project.populate('members.user', 'name email avatar');
+
   res.json({ success: true, data: { project } });
 });
 
@@ -186,44 +212,6 @@ exports.resolveSecurityAudit = catchAsync(async (req, res) => {
   res.json({ success: true, message: 'Security violation marked as resolved', data: { audit } });
 });
 
-const TEST_BOTS = [
-  {
-    name: 'Alex Chen (Frontend)',
-    email: 'alex.frontend@devcollab.com',
-    password: 'DevCollab123!',
-    role: 'frontend_developer',
-    bio: 'Senior Frontend Engineer specializing in Next.js, React, Tailwind, and WebSockets.',
-  },
-  {
-    name: 'Sarah Connor (Backend)',
-    email: 'sarah.backend@devcollab.com',
-    password: 'DevCollab123!',
-    role: 'backend_developer',
-    bio: 'Distributed Systems & API Specialist with Node.js, Express, and MongoDB.',
-  },
-  {
-    name: 'David Miller (QA Tester)',
-    email: 'david.qa@devcollab.com',
-    password: 'DevCollab123!',
-    role: 'qa_tester',
-    bio: 'Lead QA Automation Engineer focusing on E2E testing, Jest, and edge case discovery.',
-  },
-  {
-    name: 'Emma Watson (UI/UX)',
-    email: 'emma.designer@devcollab.com',
-    password: 'DevCollab123!',
-    role: 'ui_ux_designer',
-    bio: 'Product Designer dedicated to accessible typography, dark mode ergonomics, and micro-interactions.',
-  },
-  {
-    name: 'Lucas Vance (DevOps)',
-    email: 'lucas.devops@devcollab.com',
-    password: 'DevCollab123!',
-    role: 'devops',
-    bio: 'Cloud & Infrastructure Architect managing Docker, CI/CD pipelines, and cluster health.',
-  },
-];
-
 exports.seedProjectBots = catchAsync(async (req, res) => {
   const project = await Project.findById(req.params.id);
   if (!project) throw new AppError('Project not found', 404);
@@ -231,43 +219,13 @@ exports.seedProjectBots = catchAsync(async (req, res) => {
     throw new AppError('Only the project owner or manager can add test bots', 403);
   }
 
-  const seededBots = [];
-  for (const bot of TEST_BOTS) {
-    let user = await User.findOne({ email: bot.email });
-    if (!user) {
-      user = await User.create({
-        name: bot.name,
-        email: bot.email,
-        password: bot.password,
-        bio: bot.bio,
-        isVerified: true,
-      });
-    }
-
-    // Add to project if not already a member
-    const existing = project.members.find(
-      (m) => (m.user?._id || m.user).toString() === user._id.toString()
-    );
-    if (!existing) {
-      project.members.push({ user: user._id, role: bot.role });
-    }
-
-    seededBots.push({
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: bot.role,
-      password: bot.password,
-    });
-  }
-
-  await project.save();
+  await autoSeedBotsToProject(project);
   await project.populate('members.user', 'name email avatar');
 
   res.json({
     success: true,
     message: 'Test bots successfully added to this project!',
-    data: { project, bots: seededBots },
+    data: { project, bots: TEST_BOTS },
   });
 });
 

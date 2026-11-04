@@ -139,7 +139,7 @@ export default function ProjectsPage() {
               </Link>
             ))}
 
-            {data?.projects?.length === 0 && (
+            {(!filteredProjects || filteredProjects.length === 0) && (
               <div className="col-span-full border border-dashed border-border rounded-xl p-12 text-center space-y-3">
                 <FolderKanban className="w-10 h-10 text-muted-foreground mx-auto" />
                 <p className="text-base font-medium">No projects found</p>

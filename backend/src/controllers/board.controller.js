@@ -1,15 +1,24 @@
 const Task = require('../models/Task');
 const Project = require('../models/Project');
+const User = require('../models/User');
 const Notification = require('../models/Notification');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 const { getIO } = require('../socket');
+const {
+  TEST_BOTS,
+  isTestBotEmail,
+  ensureBotUser,
+  ensureProjectAccess,
+} = require('../utils/testBots');
 
 exports.getBoard = catchAsync(async (req, res) => {
   const { projectId } = req.params;
   const project = await Project.findById(projectId);
   if (!project) throw new AppError('Project not found', 404);
-  if (!project.isMember(req.user._id)) throw new AppError('Access denied', 403);
+
+  const hasAccess = await ensureProjectAccess(project, req.user);
+  if (!hasAccess) throw new AppError('Access denied', 403);
 
   const tasks = await Task.find({ project: projectId })
     .populate('assignees', 'name avatar email')
@@ -31,11 +40,44 @@ exports.createTask = catchAsync(async (req, res) => {
   const { projectId } = req.params;
   const project = await Project.findById(projectId);
   if (!project) throw new AppError('Project not found', 404);
-  if (!project.isMember(req.user._id)) throw new AppError('Access denied', 403);
+
+  const hasAccess = await ensureProjectAccess(project, req.user);
+  if (!hasAccess) throw new AppError('Access denied', 403);
+
+  let assignees = Array.isArray(req.body.assignees) ? [...req.body.assignees] : [];
+
+  // If assignees list is empty but targetRole is specified, auto-assign the matching role's bot/engineer
+  if (assignees.length === 0 && req.body.targetRole && req.body.targetRole !== 'any') {
+    const bot = TEST_BOTS.find((b) => b.role === req.body.targetRole);
+    if (bot) {
+      const botUser = await ensureBotUser(bot);
+      assignees.push(botUser._id);
+    }
+  }
+
+  // Ensure all assignees are members of this project
+  let projectModified = false;
+  for (const assigneeId of assignees) {
+    const isMem = project.members.some(
+      (m) => (m.user?._id || m.user)?.toString() === assigneeId.toString()
+    );
+    if (!isMem) {
+      const userObj = await User.findById(assigneeId);
+      const role = (req.body.targetRole && req.body.targetRole !== 'any')
+        ? req.body.targetRole
+        : (userObj?.role || 'contributor');
+      project.members.push({ user: assigneeId, role });
+      projectModified = true;
+    }
+  }
+  if (projectModified) {
+    await project.save();
+  }
 
   const count = await Task.countDocuments({ project: projectId, column: req.body.column || 'backlog' });
   const task = await Task.create({
     ...req.body,
+    assignees,
     project: projectId,
     createdBy: req.user._id,
     order: count,
@@ -81,6 +123,25 @@ exports.updateTask = catchAsync(async (req, res) => {
   const task = await Task.findById(req.params.taskId);
   if (!task) throw new AppError('Task not found', 404);
 
+  // If assignees are updated, ensure they are members of this project
+  if (Array.isArray(req.body.assignees) && req.body.assignees.length > 0) {
+    const project = await Project.findById(task.project);
+    if (project) {
+      let modified = false;
+      for (const assigneeId of req.body.assignees) {
+        const isMem = project.members.some(
+          (m) => (m.user?._id || m.user)?.toString() === assigneeId.toString()
+        );
+        if (!isMem) {
+          const userObj = await User.findById(assigneeId);
+          project.members.push({ user: assigneeId, role: userObj?.role || 'contributor' });
+          modified = true;
+        }
+      }
+      if (modified) await project.save();
+    }
+  }
+
   const allowed = ['title', 'description', 'column', 'priority', 'targetRole', 'assignees', 'dueDate', 'labels', 'order', 'resolutionNotes'];
   allowed.forEach((k) => { if (req.body[k] !== undefined) task[k] = req.body[k]; });
   await task.save();
@@ -100,7 +161,8 @@ exports.toggleTaskComplete = catchAsync(async (req, res) => {
 
   const project = await Project.findById(task.project);
   if (!project) throw new AppError('Project not found', 404);
-  if (!project.isMember(req.user._id)) throw new AppError('Access denied', 403);
+  const hasAccess = await ensureProjectAccess(project, req.user);
+  if (!hasAccess) throw new AppError('Access denied', 403);
 
   const isAssignee = task.assignees.some((a) => a.toString() === req.user._id.toString());
   const isPM = project.isProjectManager(req.user._id);
@@ -166,7 +228,8 @@ exports.submitTaskResolution = catchAsync(async (req, res) => {
 
   const project = await Project.findById(task.project);
   if (!project) throw new AppError('Project not found', 404);
-  if (!project.isMember(req.user._id)) throw new AppError('Access denied', 403);
+  const hasAccess = await ensureProjectAccess(project, req.user);
+  if (!hasAccess) throw new AppError('Access denied', 403);
 
   const isAssignee = task.assignees.some((a) => a.toString() === req.user._id.toString());
   const isPM = project.isProjectManager(req.user._id);
@@ -340,7 +403,8 @@ exports.addTaskComment = catchAsync(async (req, res) => {
 
   const project = await Project.findById(task.project);
   if (!project) throw new AppError('Project not found', 404);
-  if (!project.isMember(req.user._id)) throw new AppError('Access denied', 403);
+  const hasAccess = await ensureProjectAccess(project, req.user);
+  if (!hasAccess) throw new AppError('Access denied', 403);
 
   const userRole = project.getUserRole(req.user._id) || (project.owner.toString() === req.user._id.toString() ? 'project_manager' : 'member');
 

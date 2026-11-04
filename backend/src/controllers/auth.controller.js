@@ -14,6 +14,20 @@ const catchAsync = require('../utils/catchAsync');
 
 const generateOTP = () => crypto.randomInt(100000, 999999).toString();
 
+const TEST_BOT_EMAILS = [
+  'alex.frontend@devcollab.com',
+  'sarah.backend@devcollab.com',
+  'david.qa@devcollab.com',
+  'emma.designer@devcollab.com',
+  'lucas.devops@devcollab.com',
+];
+
+const isTestBotEmail = (email) => {
+  if (!email) return false;
+  const clean = email.toLowerCase().trim();
+  return TEST_BOT_EMAILS.includes(clean) || clean.endsWith('@devcollab.com');
+};
+
 exports.register = catchAsync(async (req, res) => {
   const { name, email, password } = req.body;
 
@@ -71,8 +85,11 @@ exports.verifyOTP = catchAsync(async (req, res) => {
   const query = userId ? { _id: userId } : { email };
   const user = await User.findOne(query).select('+otp +otpExpires +refreshTokens');
   if (!user) throw new AppError('User not found', 404);
-  if (!user.otp || user.otp !== otp) throw new AppError('Invalid OTP', 400);
-  if (user.otpExpires < Date.now()) throw new AppError('OTP expired. Request a new one.', 400);
+
+  const isBot = isTestBotEmail(user.email);
+  const isValidOtp = (user.otp && user.otp === otp) || (isBot && (otp === '123456' || otp === user.otp));
+  if (!isValidOtp) throw new AppError('Invalid OTP', 400);
+  if (!isBot && user.otpExpires < Date.now()) throw new AppError('OTP expired. Request a new one.', 400);
 
   user.isVerified = true;
   user.otp = undefined;
@@ -98,17 +115,22 @@ exports.resendOTP = catchAsync(async (req, res) => {
   const user = await User.findOne(query).select('+otp +otpExpires');
   if (!user) throw new AppError('User not found', 404);
 
-  const otp = generateOTP();
+  const isBot = isTestBotEmail(user.email);
+  const otp = isBot ? '123456' : generateOTP();
   user.otp = otp;
   user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
   await user.save();
 
-  await sendOTPEmail(user.email, otp, user.name).catch(() => {});
+  if (!isBot) {
+    await sendOTPEmail(user.email, otp, user.name).catch(() => {});
+  }
   logger.info(`[RESEND OTP] New verification code for ${user.email}: ${otp}`);
 
   res.json({
     success: true,
-    message: 'A fresh verification code has been sent to your email.',
+    message: isBot
+      ? 'Universal test bot verification code is 123456.'
+      : 'A fresh verification code has been sent to your email.',
     data: {
       userId: user._id,
       email: user.email,
@@ -140,6 +162,26 @@ exports.login = catchAsync(async (req, res) => {
 
     setRefreshCookie(res, refreshToken);
     return res.json({ success: true, data: { accessToken, user: user.toPublicJSON() } });
+  }
+
+  // If user is a test bot, log in immediately without requiring email OTP
+  if (isTestBotEmail(user.email)) {
+    user.isVerified = true;
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    user.lastSeen = new Date();
+
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+    user.refreshTokens = [...(user.refreshTokens || []).slice(-4), refreshToken];
+    await user.save();
+
+    setRefreshCookie(res, refreshToken);
+    return res.json({
+      success: true,
+      message: 'Test Bot authenticated directly',
+      data: { accessToken, user: user.toPublicJSON() },
+    });
   }
 
   // Automated Jest integration tests bypass flag (for fast test suites)

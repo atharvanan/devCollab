@@ -341,6 +341,26 @@ function VerifyOTPContent() {
         </div>
 
 
+        {email.toLowerCase().endsWith('@devcollab.com') && (
+          <div className="p-3 bg-primary/10 border border-primary/20 rounded-xl text-xs space-y-1.5 text-center">
+            <p className="font-semibold text-primary">🤖 Test Bot Account Detected</p>
+            <p className="text-muted-foreground">Universal OTP for testing accounts is <strong className="text-foreground">123456</strong>.</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-1 text-xs h-7"
+              onClick={() => {
+                const code = ['1','2','3','4','5','6'];
+                setDigits(code);
+                handleVerify('123456');
+              }}
+            >
+              Fill & Verify 123456
+            </Button>
+          </div>
+        )}
+
         {/* OTP Input Boxes */}
         <div className="space-y-3">
           <div className="flex justify-center gap-2 sm:gap-3">

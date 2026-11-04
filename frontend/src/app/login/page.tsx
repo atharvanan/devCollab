@@ -13,6 +13,14 @@ import { loginUser } from '@/store/slices/authSlice';
 import { useToast } from '@/components/ui/Toast';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
+const TEST_BOTS = [
+  { name: 'Alex Rivera', role: 'Frontend Dev', email: 'alex.frontend@devcollab.com', badge: 'Frontend' },
+  { name: 'Sarah Chen', role: 'Backend Dev', email: 'sarah.backend@devcollab.com', badge: 'Backend' },
+  { name: 'David Kim', role: 'QA Tester', email: 'david.qa@devcollab.com', badge: 'QA' },
+  { name: 'Emma Watson', role: 'UI/UX Designer', email: 'emma.designer@devcollab.com', badge: 'Designer' },
+  { name: 'Lucas Vance', role: 'DevOps Engineer', email: 'lucas.devops@devcollab.com', badge: 'DevOps' },
+];
+
 const schema = z.object({
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(1, 'Password is required'),
@@ -24,7 +32,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { loading, error } = useAppSelector((s) => s.auth);
-  const { register, handleSubmit, getValues, formState: { errors } } = useForm<LoginFormData>({
+  const { register, handleSubmit, setValue, getValues, formState: { errors } } = useForm<LoginFormData>({
     resolver: zodResolver(schema),
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -36,6 +44,12 @@ export default function LoginPage() {
   useEffect(() => {
     document.title = 'Sign In | DevCollab';
   }, []);
+
+  const handleTestBotLogin = async (botEmail: string) => {
+    setValue('email', botEmail);
+    setValue('password', 'DevCollab123!');
+    await onSubmit({ email: botEmail, password: 'DevCollab123!' });
+  };
 
   const onSubmit = async (data: LoginFormData) => {
     setUnverifiedData(null);
@@ -214,6 +228,42 @@ export default function LoginPage() {
             Sign In
           </Button>
         </form>
+
+        {/* 1-Click Test Bot Quick Sign-In */}
+        <div className="relative my-4">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t border-border" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-card px-2 text-muted-foreground font-semibold">
+              🤖 Quick Test Bot Sign-In
+            </span>
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <p className="text-[11px] text-muted-foreground text-center mb-2">
+            Click any bot to sign in instantly without needing email OTP:
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {TEST_BOTS.map((bot) => (
+              <button
+                key={bot.email}
+                type="button"
+                onClick={() => handleTestBotLogin(bot.email)}
+                disabled={loading}
+                className="flex flex-col items-start p-2 text-left rounded-lg border border-border/80 hover:border-primary/50 hover:bg-muted/50 transition-all text-xs group cursor-pointer"
+              >
+                <span className="font-semibold text-foreground group-hover:text-primary transition-colors text-[11px] truncate w-full">
+                  {bot.name}
+                </span>
+                <span className="text-[9px] text-muted-foreground">
+                  {bot.badge} • Instant Sign In
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
         </div>
 
         {/* Footer */}

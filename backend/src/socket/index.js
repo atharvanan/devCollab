@@ -1,4 +1,5 @@
 const { Server } = require('socket.io');
+const mongoose = require('mongoose');
 const { verifyAccessToken } = require('../utils/jwt');
 const User = require('../models/User');
 const CollabSession = require('../models/CollabSession');
@@ -124,7 +125,7 @@ const initSocket = (server) => {
     // ==========================================
     // Real-Time Collaborative Coding Workspace
     // ==========================================
-    socket.on('collab:join', ({ sessionId }, callback) => {
+    socket.on('collab:join', async ({ sessionId }, callback) => {
       if (!sessionId) return;
       const room = `collab:${sessionId}`;
       socket.join(room);
@@ -133,6 +134,22 @@ const initSocket = (server) => {
       logger.info(`[COLLAB] ${socket.user.name} joined ${room}`);
 
       socket.emit('collab:joined', { sessionId });
+
+      // Instantly deliver existing message history to the newly joined peer
+      try {
+        const currentSession = await CollabSession.findById(sessionId).select('messages code language contributors lineAttributions');
+        if (currentSession) {
+          socket.emit('collab:init', {
+            messages: currentSession.messages || [],
+            code: currentSession.code,
+            language: currentSession.language,
+            contributors: currentSession.contributors || [],
+            lineAttributions: currentSession.lineAttributions || [],
+          });
+        }
+      } catch (err) {
+        logger.error(`Error fetching collab session on join: ${err.message}`);
+      }
       if (typeof callback === 'function') callback({ success: true, room });
 
       // Notify others in the room
@@ -202,7 +219,7 @@ const initSocket = (server) => {
       if (!sessionId || !message || !message.trim()) return;
       const room = `collab:${sessionId}`;
       const chatItem = {
-        _id: new Date().getTime().toString() + Math.random().toString(36).substring(2, 7),
+        _id: new mongoose.Types.ObjectId(),
         user: socket.user._id,
         name: socket.user.name,
         avatar: socket.user.avatar || '',

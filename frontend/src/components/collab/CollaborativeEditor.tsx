@@ -97,12 +97,35 @@ export function CollaborativeEditor({ session, project, onSessionUpdated, onRevi
 
   const sessionId = session?._id;
 
+  // Sync message history when session updates or switches
+  useEffect(() => {
+    if (session?.messages && Array.isArray(session.messages)) {
+      setMessages(session.messages);
+    }
+  }, [session?._id, session?.messages]);
+
   // 1. Join real-time room on mount
   useEffect(() => {
     if (!sessionId) return;
     const socket = socketRef.current;
 
-    socket.emit('collab:join', { sessionId });
+    const joinCollab = () => {
+      socket.emit('collab:join', { sessionId });
+    };
+
+    if (socket.connected) {
+      joinCollab();
+    } else {
+      socket.on('connect', joinCollab);
+    }
+
+    const handleCollabInit = (payload: any) => {
+      if (payload.messages && Array.isArray(payload.messages) && payload.messages.length > 0) {
+        setMessages(payload.messages);
+      }
+      if (payload.contributors) setContributors(payload.contributors);
+      if (payload.lineAttributions) setLineAttributions(payload.lineAttributions);
+    };
 
     const handleUserJoined = (payload: any) => {
       if (payload.user && payload.user._id !== user?._id) {
@@ -158,7 +181,10 @@ export function CollaborativeEditor({ session, project, onSessionUpdated, onRevi
 
     const handleChatMessage = (msg: any) => {
       setMessages((prev) => {
-        if (prev.some((m) => m._id === msg._id)) return prev;
+        const msgId = (msg._id || msg.id)?.toString();
+        if (msgId && prev.some((m) => (m._id || m.id)?.toString() === msgId)) {
+          return prev;
+        }
         return [...prev, msg];
       });
       setTimeout(() => {
@@ -166,6 +192,7 @@ export function CollaborativeEditor({ session, project, onSessionUpdated, onRevi
       }, 50);
     };
 
+    socket.on('collab:init', handleCollabInit);
     socket.on('collab:userJoined', handleUserJoined);
     socket.on('collab:userLeft', handleUserLeft);
     socket.on('collab:codeSync', handleCodeSync);
@@ -175,7 +202,9 @@ export function CollaborativeEditor({ session, project, onSessionUpdated, onRevi
     socket.on('collab:updated', handleSessionUpdated);
 
     return () => {
+      socket.off('connect', joinCollab);
       socket.emit('collab:leave', { sessionId });
+      socket.off('collab:init', handleCollabInit);
       socket.off('collab:userJoined', handleUserJoined);
       socket.off('collab:userLeft', handleUserLeft);
       socket.off('collab:codeSync', handleCodeSync);

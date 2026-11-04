@@ -9,7 +9,7 @@ import { boardActions } from '@/store/slices/boardSlice';
 import { useSocket, useJoinRoom } from '@/hooks/useSocket';
 import { COLUMNS, COLUMN_LABELS } from '@/lib/utils';
 import { ChevronLeft, ChevronRight, ShieldCheck, AlertTriangle, AlertCircle, CheckCircle2, Lock } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { BoardColumn } from './BoardColumn';
 import { TaskModal } from './TaskModal';
 

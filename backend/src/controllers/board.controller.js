@@ -89,23 +89,13 @@ exports.createTask = catchAsync(async (req, res) => {
     }
   }
 
-  // Ensure all assignees are members of this project
-  let projectModified = false;
+  // Ensure all assignees are legitimate members of this project (Security: TASK-009, AUTO-TASK-005, ROLE-013)
   for (const assigneeId of assignees) {
-    const isMem = project.members.some(
-      (m) => (m.user?._id || m.user)?.toString() === assigneeId.toString()
-    );
+    const isMem = (project.owner?._id || project.owner)?.toString() === assigneeId.toString() ||
+      project.members.some((m) => (m.user?._id || m.user)?.toString() === assigneeId.toString());
     if (!isMem) {
-      const userObj = await User.findById(assigneeId);
-      const role = (req.body.targetRole && req.body.targetRole !== 'any')
-        ? req.body.targetRole
-        : (userObj?.role || 'contributor');
-      project.members.push({ user: assigneeId, role });
-      projectModified = true;
+      throw new AppError('Cannot assign task to a non-member. All assignees must be members of this project.', 400);
     }
-  }
-  if (projectModified) {
-    await project.save();
   }
 
   const count = await Task.countDocuments({ project: projectId, column: req.body.column || 'backlog' });
@@ -187,20 +177,15 @@ exports.updateTask = catchAsync(async (req, res) => {
     throw new AppError('Permission Denied: Only the assigned engineer, creator, or Project Manager can edit this task', 403);
   }
 
-  // If assignees are updated, ensure they are members of this project
-  if (Array.isArray(req.body.assignees) && req.body.assignees.length > 0) {
-    let modified = false;
+  // If assignees are updated, ensure they are legitimate members of this project (Security: TASK-009, ROLE-013)
+  if (Array.isArray(req.body.assignees)) {
     for (const assigneeId of req.body.assignees) {
-      const isMem = project.members.some(
-        (m) => (m.user?._id || m.user)?.toString() === assigneeId.toString()
-      );
+      const isMem = (project.owner?._id || project.owner)?.toString() === assigneeId.toString() ||
+        project.members.some((m) => (m.user?._id || m.user)?.toString() === assigneeId.toString());
       if (!isMem) {
-        const userObj = await User.findById(assigneeId);
-        project.members.push({ user: assigneeId, role: userObj?.role || 'contributor' });
-        modified = true;
+        throw new AppError('Cannot assign task to a non-member. All assignees must be members of this project.', 400);
       }
     }
-    if (modified) await project.save();
   }
 
   // Whitelist safe editable fields

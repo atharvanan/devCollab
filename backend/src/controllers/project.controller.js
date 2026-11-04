@@ -121,7 +121,11 @@ exports.deleteProject = catchAsync(async (req, res) => {
     Task.deleteMany({ project: projectId }).catch(() => {}),
     Review.deleteMany({ project: projectId }).catch(() => {}),
     CollabSession.deleteMany({ project: projectId }).catch(() => {}),
-    SecurityAudit.deleteMany({ project: projectId }).catch(() => {}),
+    // Regulatory compliance retention: Retain security audits with tombstone status
+    SecurityAudit.updateMany(
+      { project: projectId },
+      { $set: { projectDeleted: true, projectDeletedAt: new Date() } }
+    ).catch(() => {}),
     Notification.deleteMany({ 'data.projectId': projectId }).catch(() => {}),
   ]);
 
@@ -266,6 +270,9 @@ exports.seedProjectBots = catchAsync(async (req, res) => {
 });
 
 exports.getBotCredentials = catchAsync(async (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    throw new AppError('Bot credentials endpoint is disabled in production environments', 403);
+  }
   res.json({
     success: true,
     data: {

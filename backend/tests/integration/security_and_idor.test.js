@@ -5,8 +5,10 @@ const User = require('../../src/models/User');
 const Project = require('../../src/models/Project');
 const Task = require('../../src/models/Task');
 const Review = require('../../src/models/Review');
+const SecurityAudit = require('../../src/models/SecurityAudit');
 const Notification = require('../../src/models/Notification');
 const { escapeHtml } = require('../../src/services/email.service');
+const { isTestBotEmail } = require('../../src/utils/testBots');
 
 describe('Security & Vulnerability Remediation Suite (SEC-001 to SEC-020, D-01 to D-23)', () => {
   let aliceUser, bobUser, eveOutsider;
@@ -18,6 +20,7 @@ describe('Security & Vulnerability Remediation Suite (SEC-001 to SEC-020, D-01 t
     await Project.deleteMany({});
     await Task.deleteMany({});
     await Review.deleteMany({});
+    await SecurityAudit.deleteMany({});
     await Notification.deleteMany({});
 
     aliceUser = await User.create({
@@ -124,9 +127,34 @@ describe('Security & Vulnerability Remediation Suite (SEC-001 to SEC-020, D-01 t
         });
 
       expect(res.status).toBe(201);
-      // Backend forces initial column to backlog or todo, stripping forged done & review
       expect(res.body.data.task.column).not.toBe('done');
       expect(res.body.data.task.managerReview?.status).not.toBe('approved');
+    });
+
+    it('SEC-016: Rejects assigning task to non-member on task creation (TASK-009, ROLE-013)', async () => {
+      const res = await request(app)
+        .post(`/api/v1/board/${privateProject._id}/tasks`)
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .send({
+          title: 'Unauthorized Outsider Assignment',
+          assignees: [eveOutsider._id], // Eve is not a member of privateProject
+          column: 'todo',
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toMatch(/Cannot assign task to a non-member/i);
+    });
+
+    it('SEC-017: Rejects updating task assignees to include non-member (AUTO-TASK-005, ROLE-013)', async () => {
+      const res = await request(app)
+        .put(`/api/v1/board/tasks/${aliceTask._id}`)
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .send({
+          assignees: [eveOutsider._id],
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toMatch(/Cannot assign task to a non-member/i);
     });
   });
 
@@ -187,7 +215,6 @@ describe('Security & Vulnerability Remediation Suite (SEC-001 to SEC-020, D-01 t
         otpExpires: new Date(Date.now() + 10 * 60 * 1000),
       });
 
-      // Submit 4 incorrect attempts
       for (let i = 0; i < 4; i++) {
         const attempt = await request(app)
           .post('/api/v1/auth/verify-otp')
@@ -196,7 +223,6 @@ describe('Security & Vulnerability Remediation Suite (SEC-001 to SEC-020, D-01 t
         expect(attempt.body.message).toMatch(/Invalid OTP/i);
       }
 
-      // 5th incorrect attempt must trigger 429 Lockout
       const fifthAttempt = await request(app)
         .post('/api/v1/auth/verify-otp')
         .send({ email: victim.email, otp: '000000' });
@@ -204,7 +230,6 @@ describe('Security & Vulnerability Remediation Suite (SEC-001 to SEC-020, D-01 t
       expect(fifthAttempt.status).toBe(429);
       expect(fifthAttempt.body.message).toMatch(/Maximum OTP attempts exceeded.*locked/i);
 
-      // Subsequent attempt while locked must immediately return 429
       const lockedAttempt = await request(app)
         .post('/api/v1/auth/verify-otp')
         .send({ email: victim.email, otp: '999888' });
@@ -225,7 +250,6 @@ describe('Security & Vulnerability Remediation Suite (SEC-001 to SEC-020, D-01 t
       expect(existingRes.status).toBe(200);
       expect(nonExistingRes.status).toBe(200);
       expect(existingRes.body.message).toBe(nonExistingRes.body.message);
-      // Neither response exposes user record or existence data
       expect(existingRes.body.data).toBeUndefined();
       expect(nonExistingRes.body.data).toBeUndefined();
     });
@@ -253,21 +277,20 @@ describe('Security & Vulnerability Remediation Suite (SEC-001 to SEC-020, D-01 t
     });
   });
 
-  describe('D-15 & D-19: Bounded Pagination & Cascading Deletions', () => {
+  describe('D-15, D-19 & PROJX-004: Bounded Pagination & Security Audit Retention Policy', () => {
     it('SEC-014: Bounds negative and out-of-range pagination parameters safely', async () => {
       const res = await request(app)
         .get('/api/v1/projects?page=-5&limit=9999')
         .set('Authorization', `Bearer ${aliceToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.data.pagination.page).toBe(1); // Clamped to 1
-      expect(res.body.data.pagination.limit).toBeLessThanOrEqual(100); // Clamped to max 100
+      expect(res.body.data.pagination.page).toBe(1);
+      expect(res.body.data.pagination.limit).toBeLessThanOrEqual(100);
     });
 
-    it('SEC-015: Cascades project deletion safely across tasks, reviews, and notifications', async () => {
-      // Create temporary project with child records
+    it('SEC-015 & SEC-018: Cascades project deletion while RETAINING compliance audit records', async () => {
       const tempProject = await Project.create({
-        name: 'Ephemeral Project',
+        name: 'Audit Retention Demo Project',
         owner: aliceUser._id,
         members: [{ user: aliceUser._id, role: 'project_manager' }],
       });
@@ -286,6 +309,18 @@ describe('Security & Vulnerability Remediation Suite (SEC-001 to SEC-020, D-01 t
         language: 'javascript',
       });
 
+      // Create a critical security audit record
+      const tempAudit = await SecurityAudit.create({
+        project: tempProject._id,
+        user: bobUser._id,
+        userRole: 'contributor',
+        attemptedAction: 'unauthorized_code_modification',
+        targetResource: 'code_review',
+        targetDomain: 'security',
+        details: 'Attempted to modify security firewall rules without authorization',
+        severity: 'critical',
+      });
+
       // Delete project
       const delRes = await request(app)
         .delete(`/api/v1/projects/${tempProject._id}`)
@@ -293,12 +328,57 @@ describe('Security & Vulnerability Remediation Suite (SEC-001 to SEC-020, D-01 t
 
       expect(delRes.status).toBe(200);
 
-      // Verify child records cascaded
+      // Operational tasks and reviews must be deleted
       const remainingTasks = await Task.find({ project: tempProject._id });
       const remainingReviews = await Review.find({ project: tempProject._id });
-
       expect(remainingTasks.length).toBe(0);
       expect(remainingReviews.length).toBe(0);
+
+      // CRITICAL COMPLIANCE AUDIT RETENTION (SOC-2/ISO-27001): Audit log MUST be retained
+      const preservedAudit = await SecurityAudit.findById(tempAudit._id);
+      expect(preservedAudit).toBeDefined();
+      expect(preservedAudit.projectDeleted).toBe(true);
+      expect(preservedAudit.projectDeletedAt).toBeDefined();
+    });
+  });
+
+  describe('Test Bot Production Security Isolation (BOT-001, BOT-008, BOT-009)', () => {
+    it('SEC-019: Disables test-bot credential endpoint in production mode (BOT-001)', async () => {
+      const oldEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+
+      try {
+        const res = await request(app)
+          .get('/api/v1/projects/test/bot-credentials')
+          .set('Authorization', `Bearer ${aliceToken}`);
+
+        expect(res.status).toBe(403);
+        expect(res.body.message).toMatch(/disabled in production/i);
+      } finally {
+        process.env.NODE_ENV = oldEnv;
+      }
+    });
+
+    it('SEC-020: Proves test-bot bypass cannot be activated in production (BOT-008, BOT-009)', () => {
+      const oldEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+
+      try {
+        // In production, isTestBotEmail must return FALSE for any email
+        expect(isTestBotEmail('alex.frontend@devcollab.com')).toBe(false);
+        expect(isTestBotEmail('attacker@devcollab.com')).toBe(false);
+        expect(isTestBotEmail('hacker@external.com')).toBe(false);
+      } finally {
+        process.env.NODE_ENV = oldEnv;
+      }
+    });
+
+    it('SEC-021: Lookalike and domain suffix emails cannot hijack test-bot status (BOT-009)', () => {
+      // Test that non-bot emails on the domain are NEVER treated as bots
+      expect(isTestBotEmail('random_user@devcollab.com')).toBe(false);
+      expect(isTestBotEmail('ceo@devcollab.com')).toBe(false);
+      expect(isTestBotEmail('alex.frontend@devcollab.com.fake.com')).toBe(false);
+      expect(isTestBotEmail('alex.frontend+evil@devcollab.com')).toBe(false);
     });
   });
 });

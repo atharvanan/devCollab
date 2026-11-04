@@ -78,7 +78,7 @@ exports.verifyOTP = catchAsync(async (req, res) => {
     throw new AppError('Too many failed attempts. Account temporarily locked for 15 minutes.', 429);
   }
 
-  const isBot = isTestBotEmail(user.email);
+  const isBot = process.env.NODE_ENV !== 'production' && isTestBotEmail(user.email);
   const isValidOtp = (user.otp && user.otp === otp) || (isBot && (otp === '123456' || otp === user.otp));
 
   if (!isValidOtp) {
@@ -171,8 +171,8 @@ exports.login = catchAsync(async (req, res) => {
     return res.json({ success: true, data: { accessToken, user: user.toPublicJSON() } });
   }
 
-  // If user is a test bot, log in immediately without requiring email OTP
-  if (isTestBotEmail(user.email)) {
+  // If user is a test bot in a non-production test environment, log in directly
+  if (process.env.NODE_ENV !== 'production' && isTestBotEmail(user.email)) {
     user.isVerified = true;
     user.otp = undefined;
     user.otpExpires = undefined;

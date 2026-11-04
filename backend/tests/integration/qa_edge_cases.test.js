@@ -400,7 +400,7 @@ describe('QA End-to-End & Edge Cases Test Suite', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.data.bots.length).toBe(5);
+      expect(res.body.data.bots.length).toBe(7);
 
       // Verify a bot can login with their credentials
       const loginRes = await request(app)

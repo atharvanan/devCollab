@@ -30,6 +30,8 @@ describe('E2E Multi-Role Bot Collaboration & Communication System', () => {
     { role: 'qa_tester', email: 'david.qa@devcollab.com', name: 'David Miller' },
     { role: 'ui_ux_designer', email: 'emma.designer@devcollab.com', name: 'Emma Watson' },
     { role: 'devops', email: 'lucas.devops@devcollab.com', name: 'Lucas Vance' },
+    { role: 'security_engineer', email: 'frank.security@devcollab.com', name: 'Frank Miller' },
+    { role: 'db_developer', email: 'grace.db@devcollab.com', name: 'Grace Hopper' },
   ];
 
   beforeAll((done) => {
@@ -91,11 +93,11 @@ describe('E2E Multi-Role Bot Collaboration & Communication System', () => {
 
     expect(seedRes.status).toBe(200);
     expect(seedRes.body.success).toBe(true);
-    expect(seedRes.body.data.bots.length).toBe(5);
+    expect(seedRes.body.data.bots.length).toBe(7);
 
-    // Verify Project Membership (1 PM owner + 5 seeded bots = 6 total members)
+    // Verify Project Membership (1 PM owner + 7 seeded bots = 8 total members)
     const updatedProj = await Project.findById(testProject._id).populate('members.user');
-    expect(updatedProj.members.length).toBe(6);
+    expect(updatedProj.members.length).toBe(8);
 
     // Test login for EVERY bot role
     for (const b of BOTS) {

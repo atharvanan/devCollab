@@ -14,6 +14,9 @@ const securityAuditSchema = new mongoose.Schema(
     resolved: { type: Boolean, default: false },
     resolvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     resolvedAt: { type: Date },
+    // Compliance Retention Policy: Security audits are retained even after project deletion
+    projectDeleted: { type: Boolean, default: false },
+    projectDeletedAt: { type: Date },
   },
   { timestamps: true }
 );

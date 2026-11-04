@@ -112,3 +112,4 @@ describe('BoardColumn Component (UIX-003, D-07, ROLE-001)', () => {
     expect(scrollContainer).toBeInTheDocument();
   });
 });
+

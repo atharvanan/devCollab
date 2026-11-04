@@ -140,3 +140,4 @@ All tests were executed across multi-tab browser sessions (Google Chrome Version
   4. Request pagination with `?page=0&limit=999999` -> Server clamps to `page=1, limit=100`.
 - **Evidence Observed**:
   - `MAN-EDGE-001` to `MAN-EDGE-012` (Pass): All destructive boundaries and edge cases handled safely.
+

@@ -81,3 +81,4 @@ describe('WCAG 2.1 AA Automated Accessibility Verification (axe-core)', () => {
     expect(results.violations).toEqual([]);
   });
 });
+

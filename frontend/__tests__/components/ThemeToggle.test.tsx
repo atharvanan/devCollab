@@ -45,3 +45,4 @@ describe('ThemeToggle Component (UIX-004, D-22)', () => {
     expect(screen.getByText(/Dark Theme|Light Theme/)).toBeInTheDocument();
   });
 });
+

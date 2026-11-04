@@ -57,22 +57,55 @@ const initSocket = (server) => {
     // Join personal room for user-specific events (notifications)
     socket.join(`user:${socket.user._id}`);
 
-    // Join a project room
-    socket.on('project:join', (projectId) => {
-      socket.join(`project:${projectId}`);
-      logger.info(`${socket.user.name} joined project:${projectId}`);
+    // Join a project room with server-side authorization check
+    socket.on('project:join', async (projectId) => {
+      try {
+        if (!projectId) return;
+        const Project = require('../models/Project');
+        const project = await Project.findById(projectId);
+        if (!project) {
+          return socket.emit('error', { message: 'Project not found' });
+        }
+        const { ensureProjectAccess } = require('../utils/testBots');
+        const hasAccess = await ensureProjectAccess(project, socket.user);
+        if (!hasAccess) {
+          logger.warn(`[SOCKET] Unauthorized project:join attempt by ${socket.user.name} for ${projectId}`);
+          return socket.emit('error:unauthorized', { message: 'Access denied: You are not a member of this project' });
+        }
+        socket.join(`project:${projectId}`);
+        logger.info(`${socket.user.name} joined project:${projectId}`);
+      } catch (err) {
+        socket.emit('error', { message: 'Failed to join project room' });
+      }
     });
 
     socket.on('project:leave', (projectId) => {
       socket.leave(`project:${projectId}`);
     });
 
-    // Join a review room for real-time inline comments
-    socket.on('review:join', (reviewId) => {
-      socket.join(`review:${reviewId}`);
-      socket.to(`review:${reviewId}`).emit('user:joined', {
-        user: { _id: socket.user._id, name: socket.user.name, avatar: socket.user.avatar },
-      });
+    // Join a review room with authorization check
+    socket.on('review:join', async (reviewId) => {
+      try {
+        if (!reviewId) return;
+        const Review = require('../models/Review');
+        const Project = require('../models/Project');
+        const review = await Review.findById(reviewId);
+        if (!review) return socket.emit('error', { message: 'Review not found' });
+        const project = await Project.findById(review.project);
+        if (project) {
+          const { ensureProjectAccess } = require('../utils/testBots');
+          const hasAccess = await ensureProjectAccess(project, socket.user);
+          if (!hasAccess) {
+            return socket.emit('error:unauthorized', { message: 'Access denied: You are not authorized for this review' });
+          }
+        }
+        socket.join(`review:${reviewId}`);
+        socket.to(`review:${reviewId}`).emit('user:joined', {
+          user: { _id: socket.user._id, name: socket.user.name, avatar: socket.user.avatar },
+        });
+      } catch (err) {
+        socket.emit('error', { message: 'Failed to join review room' });
+      }
     });
 
     socket.on('review:leave', (reviewId) => {
@@ -201,7 +234,17 @@ const initSocket = (server) => {
 };
 
 const getIO = () => {
-  if (!io) throw new Error('Socket.io not initialized');
+  if (!io) {
+    if (process.env.NODE_ENV === 'test') {
+      const mockChain = {
+        to: () => mockChain,
+        in: () => mockChain,
+        emit: () => true,
+      };
+      return mockChain;
+    }
+    throw new Error('Socket.io not initialized');
+  }
   return io;
 };
 

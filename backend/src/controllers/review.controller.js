@@ -17,6 +17,14 @@ exports.createReview = catchAsync(async (req, res) => {
   const userRole = project.getUserRole(req.user._id);
   const isPM = project.isProjectManager(req.user._id);
 
+  if (userRole === 'viewer') {
+    throw new AppError('Viewers have read-only permissions and cannot create reviews', 403);
+  }
+
+  if (code && typeof code === 'string' && code.length > 100000) {
+    throw new AppError('Review code size exceeds maximum limit of 100 KB', 413);
+  }
+
   // Check role-based domain boundaries
   if (!isPM && !canRoleAccessDomain(userRole, domain)) {
     const roleName = ROLE_DISPLAY_NAMES[userRole] || userRole;
@@ -90,13 +98,22 @@ exports.getReviews = catchAsync(async (req, res) => {
     ];
   }
 
+  if (projectId) {
+    const project = await Project.findById(projectId);
+    if (!project) throw new AppError('Project not found', 404);
+    const hasAccess = await ensureProjectAccess(project, req.user);
+    if (!hasAccess) throw new AppError('Access denied: You are not a member of this project', 403);
+  }
+
   if (status === 'open') {
     query.status = { $in: ['open', 'in_review', 'changes_requested'] };
   } else if (status) {
     query.status = status;
   }
 
-  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
+  const skip = (pageNum - 1) * limitNum;
   const [reviews, total] = await Promise.all([
     Review.find(query)
       .populate('author', 'name avatar')
@@ -117,6 +134,12 @@ exports.getReview = catchAsync(async (req, res) => {
     .populate('generalComments.author', 'name avatar')
     .populate('reviewers', 'name avatar');
   if (!review) throw new AppError('Review not found', 404);
+
+  const project = await Project.findById(review.project);
+  if (!project) throw new AppError('Project not found', 404);
+  const hasAccess = await ensureProjectAccess(project, req.user);
+  if (!hasAccess) throw new AppError('Access denied: You are not authorized to view reviews in this project', 403);
+
   res.json({ success: true, data: { review } });
 });
 
@@ -124,6 +147,28 @@ exports.addInlineComment = catchAsync(async (req, res) => {
   const { lineNumber, content } = req.body;
   const review = await Review.findById(req.params.id);
   if (!review) throw new AppError('Review not found', 404);
+
+  const project = await Project.findById(review.project);
+  if (!project) throw new AppError('Project not found', 404);
+  const hasAccess = await ensureProjectAccess(project, req.user);
+  if (!hasAccess) throw new AppError('Access denied: You are not a member of this project', 403);
+
+  const userRole = project.getUserRole(req.user._id);
+  if (userRole === 'viewer') {
+    throw new AppError('Viewers have read-only access and cannot add inline comments', 403);
+  }
+
+  if (typeof lineNumber !== 'number' || lineNumber <= 0) {
+    throw new AppError('Line number must be a positive integer greater than 0', 400);
+  }
+
+  if (!content || !content.trim()) {
+    throw new AppError('Comment content is required', 400);
+  }
+
+  if (content.length > 2000) {
+    throw new AppError('Comment cannot exceed 2000 characters', 400);
+  }
 
   const comment = { author: req.user._id, lineNumber, content };
   review.inlineComments.push(comment);
@@ -153,6 +198,17 @@ exports.addInlineComment = catchAsync(async (req, res) => {
 exports.resolveComment = catchAsync(async (req, res) => {
   const review = await Review.findById(req.params.id);
   if (!review) throw new AppError('Review not found', 404);
+
+  const project = await Project.findById(review.project);
+  if (!project) throw new AppError('Project not found', 404);
+  const hasAccess = await ensureProjectAccess(project, req.user);
+  if (!hasAccess) throw new AppError('Access denied', 403);
+
+  const userRole = project.getUserRole(req.user._id);
+  if (userRole === 'viewer') {
+    throw new AppError('Viewers have read-only access and cannot resolve comments', 403);
+  }
+
   const comment = review.inlineComments.id(req.params.commentId);
   if (!comment) throw new AppError('Comment not found', 404);
   comment.resolved = true;
@@ -166,6 +222,24 @@ exports.addGeneralComment = catchAsync(async (req, res) => {
   const { content } = req.body;
   const review = await Review.findById(req.params.id);
   if (!review) throw new AppError('Review not found', 404);
+
+  const project = await Project.findById(review.project);
+  if (!project) throw new AppError('Project not found', 404);
+  const hasAccess = await ensureProjectAccess(project, req.user);
+  if (!hasAccess) throw new AppError('Access denied: You are not a member of this project', 403);
+
+  const userRole = project.getUserRole(req.user._id);
+  if (userRole === 'viewer') {
+    throw new AppError('Viewers have read-only access and cannot add comments', 403);
+  }
+
+  if (!content || !content.trim()) {
+    throw new AppError('Comment content is required', 400);
+  }
+
+  if (content.length > 2000) {
+    throw new AppError('Comment cannot exceed 2000 characters', 400);
+  }
   review.generalComments.push({ author: req.user._id, content });
   await review.save();
   await review.populate('generalComments.author', 'name avatar');
@@ -176,8 +250,29 @@ exports.addGeneralComment = catchAsync(async (req, res) => {
 
 exports.updateStatus = catchAsync(async (req, res) => {
   const { status } = req.body;
+  const validStatuses = ['open', 'in_review', 'changes_requested', 'approved', 'closed'];
+  if (!validStatuses.includes(status)) {
+    throw new AppError(`Invalid review status: ${status}`, 400);
+  }
+
   const review = await Review.findById(req.params.id);
   if (!review) throw new AppError('Review not found', 404);
+
+  const project = await Project.findById(review.project);
+  if (!project) throw new AppError('Project not found', 404);
+  const hasAccess = await ensureProjectAccess(project, req.user);
+  if (!hasAccess) throw new AppError('Access denied: You are not a member of this project', 403);
+
+  const isPM = project.isProjectManager(req.user._id);
+  const userRole = project.getUserRole(req.user._id);
+
+  if (userRole === 'viewer') {
+    throw new AppError('Viewers have read-only access and cannot change review status', 403);
+  }
+
+  if (status === 'approved' && !isPM) {
+    throw new AppError('Compliance Restriction: Only Project Managers can approve code reviews', 403);
+  }
   review.status = status;
   await review.save();
   getIO().to(`review:${review._id}`).emit('review:statusChanged', { status });
@@ -210,6 +305,14 @@ exports.updateReview = catchAsync(async (req, res) => {
 
   const userRole = project.getUserRole(req.user._id);
   const isPM = project.isProjectManager(req.user._id);
+
+  if (userRole === 'viewer') {
+    throw new AppError('Viewers have read-only permissions and cannot create reviews', 403);
+  }
+
+  if (code && typeof code === 'string' && code.length > 100000) {
+    throw new AppError('Review code size exceeds maximum limit of 100 KB', 413);
+  }
   const targetDomain = domain || review.domain || 'general';
 
   // Code modification security guard

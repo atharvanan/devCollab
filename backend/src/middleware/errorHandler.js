@@ -30,6 +30,18 @@ const errorHandler = (err, req, res, next) => {
   // Production: only send operational errors to client
   let error = { ...err, message: err.message };
 
+  if (err.name === 'MulterError' && err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({
+      success: false,
+      message: 'File size exceeds maximum allowed limit (5 MB)',
+    });
+  }
+  if (err.type === 'entity.too.large' || err.statusCode === 413) {
+    return res.status(413).json({
+      success: false,
+      message: 'Payload size exceeds maximum allowed limit',
+    });
+  }
   if (err.name === 'CastError') error = handleCastErrorDB(err);
   if (err.code === 11000) error = handleDuplicateFieldsDB(err);
   if (err.name === 'ValidationError') error = handleValidationErrorDB(err);

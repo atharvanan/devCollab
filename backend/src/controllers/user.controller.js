@@ -38,11 +38,14 @@ exports.updatePassword = catchAsync(async (req, res) => {
 
 exports.searchUsers = catchAsync(async (req, res) => {
   const { q } = req.query;
-  if (!q || q.length < 2) return res.json({ success: true, data: { users: [] } });
+  if (!q || typeof q !== 'string' || q.trim().length < 2) {
+    return res.json({ success: true, data: { users: [] } });
+  }
+  const safeQuery = q.trim().slice(0, 50).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const users = await User.find({
     $or: [
-      { name: { $regex: q, $options: 'i' } },
-      { email: { $regex: q, $options: 'i' } },
+      { name: { $regex: safeQuery, $options: 'i' } },
+      { email: { $regex: safeQuery, $options: 'i' } },
     ],
     isVerified: true,
   }).select('name email avatar').limit(10);

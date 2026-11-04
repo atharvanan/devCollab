@@ -12,7 +12,7 @@ const { sendOTPEmail, sendPasswordResetEmail } = require('../services/email.serv
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 
-const generateOTP = () => crypto.randomInt(100000, 999999).toString();
+const generateOTP = () => crypto.randomInt(100000, 1000000).toString();
 
 const { isTestBotEmail } = require('../utils/testBots');
 
@@ -71,17 +71,36 @@ exports.verifyOTP = catchAsync(async (req, res) => {
   const { userId, email, otp } = req.body;
 
   const query = userId ? { _id: userId } : { email };
-  const user = await User.findOne(query).select('+otp +otpExpires +refreshTokens');
+  const user = await User.findOne(query).select('+otp +otpExpires +otpAttempts +otpLockedUntil +refreshTokens');
   if (!user) throw new AppError('User not found', 404);
+
+  if (user.otpLockedUntil && user.otpLockedUntil > Date.now()) {
+    throw new AppError('Too many failed attempts. Account temporarily locked for 15 minutes.', 429);
+  }
 
   const isBot = isTestBotEmail(user.email);
   const isValidOtp = (user.otp && user.otp === otp) || (isBot && (otp === '123456' || otp === user.otp));
-  if (!isValidOtp) throw new AppError('Invalid OTP', 400);
+
+  if (!isValidOtp) {
+    user.otpAttempts = (user.otpAttempts || 0) + 1;
+    if (user.otpAttempts >= 5) {
+      user.otpLockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+      user.otp = undefined;
+    }
+    await user.save();
+    if (user.otpAttempts >= 5) {
+      throw new AppError('Maximum OTP attempts exceeded. Account locked for 15 minutes.', 429);
+    }
+    throw new AppError(`Invalid OTP. ${5 - user.otpAttempts} attempts remaining.`, 400);
+  }
+
   if (!isBot && user.otpExpires < Date.now()) throw new AppError('OTP expired. Request a new one.', 400);
 
   user.isVerified = true;
   user.otp = undefined;
   user.otpExpires = undefined;
+  user.otpAttempts = 0;
+  user.otpLockedUntil = undefined;
   user.lastSeen = new Date();
 
   const accessToken = generateAccessToken(user._id);
@@ -300,9 +319,6 @@ exports.forgotPassword = catchAsync(async (req, res) => {
   res.status(200).json({
     success: true,
     message: 'If an account exists with this email, a password reset code has been sent.',
-    data: {
-      email: user.email,
-    },
   });
 });
 

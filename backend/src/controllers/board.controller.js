@@ -73,6 +73,11 @@ exports.createTask = catchAsync(async (req, res) => {
   const hasAccess = await ensureProjectAccess(project, req.user);
   if (!hasAccess) throw new AppError('Access denied', 403);
 
+  const userRole = project.getUserRole(req.user._id);
+  if (userRole === 'viewer') {
+    throw new AppError('Viewers have read-only access and cannot create tasks', 403);
+  }
+
   let assignees = Array.isArray(req.body.assignees) ? [...req.body.assignees] : [];
 
   // If assignees list is empty but targetRole is specified, auto-assign the matching role's bot/engineer
@@ -104,8 +109,17 @@ exports.createTask = catchAsync(async (req, res) => {
   }
 
   const count = await Task.countDocuments({ project: projectId, column: req.body.column || 'backlog' });
+  
+  // Sanitize fields against mass-assignment
+  const initialColumn = (req.body.column === 'todo') ? 'todo' : 'backlog';
   const task = await Task.create({
-    ...req.body,
+    title: req.body.title,
+    description: req.body.description || '',
+    priority: req.body.priority || 'medium',
+    targetRole: req.body.targetRole || 'any',
+    dueDate: req.body.dueDate,
+    labels: Array.isArray(req.body.labels) ? req.body.labels : [],
+    column: initialColumn,
     assignees,
     project: projectId,
     createdBy: req.user._id,
@@ -152,27 +166,63 @@ exports.updateTask = catchAsync(async (req, res) => {
   const task = await Task.findById(req.params.taskId);
   if (!task) throw new AppError('Task not found', 404);
 
-  // If assignees are updated, ensure they are members of this project
-  if (Array.isArray(req.body.assignees) && req.body.assignees.length > 0) {
-    const project = await Project.findById(task.project);
-    if (project) {
-      let modified = false;
-      for (const assigneeId of req.body.assignees) {
-        const isMem = project.members.some(
-          (m) => (m.user?._id || m.user)?.toString() === assigneeId.toString()
-        );
-        if (!isMem) {
-          const userObj = await User.findById(assigneeId);
-          project.members.push({ user: assigneeId, role: userObj?.role || 'contributor' });
-          modified = true;
-        }
-      }
-      if (modified) await project.save();
-    }
+  const project = await Project.findById(task.project);
+  if (!project) throw new AppError('Project not found', 404);
+
+  const hasAccess = await ensureProjectAccess(project, req.user);
+  if (!hasAccess) throw new AppError('Access denied: You are not authorized to access this project', 403);
+
+  const userRole = project.getUserRole(req.user._id);
+  if (userRole === 'viewer') {
+    throw new AppError('Viewers have read-only access and cannot edit tasks', 403);
   }
 
-  const allowed = ['title', 'description', 'column', 'priority', 'targetRole', 'assignees', 'dueDate', 'labels', 'order', 'resolutionNotes'];
+  const isPM = project.isProjectManager(req.user._id);
+  const isAssignee = task.assignees?.some(
+    (a) => (a._id || a).toString() === req.user._id.toString()
+  );
+  const isCreator = (task.createdBy?._id || task.createdBy)?.toString() === req.user._id.toString();
+
+  if (!isPM && !isAssignee && !isCreator) {
+    throw new AppError('Permission Denied: Only the assigned engineer, creator, or Project Manager can edit this task', 403);
+  }
+
+  // If assignees are updated, ensure they are members of this project
+  if (Array.isArray(req.body.assignees) && req.body.assignees.length > 0) {
+    let modified = false;
+    for (const assigneeId of req.body.assignees) {
+      const isMem = project.members.some(
+        (m) => (m.user?._id || m.user)?.toString() === assigneeId.toString()
+      );
+      if (!isMem) {
+        const userObj = await User.findById(assigneeId);
+        project.members.push({ user: assigneeId, role: userObj?.role || 'contributor' });
+        modified = true;
+      }
+    }
+    if (modified) await project.save();
+  }
+
+  // Whitelist safe editable fields
+  const allowed = ['title', 'description', 'priority', 'targetRole', 'assignees', 'dueDate', 'labels', 'order', 'resolutionNotes'];
   allowed.forEach((k) => { if (req.body[k] !== undefined) task[k] = req.body[k]; });
+
+  if (req.body.column !== undefined) {
+    const validColumns = ['backlog', 'todo', 'in_progress', 'review', 'done'];
+    if (!validColumns.includes(req.body.column)) {
+      throw new AppError('Invalid board column', 400);
+    }
+    if (req.body.column === 'done' && !isPM) {
+      throw new AppError('Compliance Restriction: Only Project Managers can approve and close tickets into Done.', 403);
+    }
+    if (task.column === 'review' && req.body.column !== 'review' && !isPM) {
+      throw new AppError('Compliance Restriction: Ticket is under PM Review and cannot be moved by team members.', 403);
+    }
+    if (req.body.column === 'in_progress' && !task.startedAt) {
+      task.startedAt = new Date();
+    }
+    task.column = req.body.column;
+  }
   await task.save();
   await task.populate('assignees', 'name avatar email');
   await task.populate('createdBy', 'name avatar');
@@ -527,6 +577,20 @@ exports.moveTask = catchAsync(async (req, res) => {
 exports.deleteTask = catchAsync(async (req, res) => {
   const task = await Task.findById(req.params.taskId);
   if (!task) throw new AppError('Task not found', 404);
+
+  const project = await Project.findById(task.project);
+  if (!project) throw new AppError('Project not found', 404);
+
+  const hasAccess = await ensureProjectAccess(project, req.user);
+  if (!hasAccess) throw new AppError('Access denied', 403);
+
+  const isPM = project.isProjectManager(req.user._id);
+  const isCreator = (task.createdBy?._id || task.createdBy)?.toString() === req.user._id.toString();
+
+  if (!isPM && !isCreator) {
+    throw new AppError('Permission Denied: Only the Project Manager or task creator can delete this task', 403);
+  }
+
   const projectId = task.project;
   await task.deleteOne();
   getIO().to(`project:${projectId}`).emit('task:deleted', { taskId: req.params.taskId });

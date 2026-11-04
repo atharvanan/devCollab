@@ -1,4 +1,12 @@
 const nodemailer = require('nodemailer');
+
+const escapeHtml = (str) =>
+  String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 const logger = require('../utils/logger');
 
 let transporterInstance = null;
@@ -95,7 +103,7 @@ const sendOTPEmail = async (to, otp, name) => {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #6366f1;">DevCollab - Verify Your Email</h2>
-      <p>Hi ${name},</p>
+      <p>Hi ${escapeHtml(name)},</p>
       <p>Your verification code is:</p>
       <div style="background: #f1f5f9; border-radius: 8px; padding: 24px; text-align: center; margin: 24px 0;">
         <span style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #6366f1;">${otp}</span>
@@ -145,6 +153,6 @@ const sendPasswordResetEmail = async (to, otp, name) => {
   return sendEmail({ to, subject: 'Reset your DevCollab password', html });
 };
 
-module.exports = { sendEmail, sendOTPEmail, sendPasswordResetEmail, sendNotificationEmail, verifySMTPConnection };
+module.exports = { sendEmail, sendOTPEmail, sendPasswordResetEmail, sendNotificationEmail, verifySMTPConnection, escapeHtml };
 
 

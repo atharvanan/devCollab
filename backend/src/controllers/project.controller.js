@@ -46,19 +46,29 @@ exports.getProjects = catchAsync(async (req, res) => {
       };
   if (search) query.$text = { $search: search };
 
-  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
+  const skip = (pageNum - 1) * limitNum;
   const [projects, total] = await Promise.all([
     Project.find(query)
       .populate('owner', 'name email avatar')
       .sort({ updatedAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit)),
+      .limit(limitNum),
     Project.countDocuments(query),
   ]);
 
   res.json({
     success: true,
-    data: { projects, pagination: { page: parseInt(page), limit: parseInt(limit), total, pages: Math.ceil(total / parseInt(limit)) } },
+    data: {
+      projects,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum) || 1,
+      },
+    },
   });
 });
 
@@ -103,12 +113,22 @@ exports.deleteProject = catchAsync(async (req, res) => {
   const Review = require('../models/Review');
   const CollabSession = require('../models/CollabSession');
 
+  const SecurityAudit = require('../models/SecurityAudit');
+  const Notification = require('../models/Notification');
+
   await Promise.all([
     project.deleteOne(),
     Task.deleteMany({ project: projectId }).catch(() => {}),
     Review.deleteMany({ project: projectId }).catch(() => {}),
     CollabSession.deleteMany({ project: projectId }).catch(() => {}),
+    SecurityAudit.deleteMany({ project: projectId }).catch(() => {}),
+    Notification.deleteMany({ 'data.projectId': projectId }).catch(() => {}),
   ]);
+
+  try {
+    const { getIO } = require('../socket');
+    getIO().to(`project:${projectId}`).emit('project:deleted', { projectId });
+  } catch (_) {}
 
   res.json({ success: true, message: 'Project and all associated resources deleted successfully' });
 });
@@ -127,6 +147,22 @@ exports.inviteMember = catchAsync(async (req, res) => {
   project.members.push({ user: invitee._id, role });
   await project.save();
   await project.populate('members.user', 'name email avatar');
+
+  try {
+    const Notification = require('../models/Notification');
+    const { getIO } = require('../socket');
+    await Notification.create({
+      recipient: invitee._id,
+      sender: req.user._id,
+      type: 'project_invitation',
+      title: 'Added to Project',
+      message: `${req.user.name} added you to project "${project.name}" as ${ROLE_DISPLAY_NAMES[role] || role}.`,
+      link: `/projects/${project._id}`,
+      data: { projectId: project._id },
+    });
+    getIO().to(`user:${invitee._id}`).emit('notification:new', { type: 'project_invitation' });
+  } catch (_) {}
+
   res.json({ success: true, message: `Member added as ${ROLE_DISPLAY_NAMES[role] || role}`, data: { project } });
 });
 

@@ -26,6 +26,24 @@ exports.protect = catchAsync(async (req, res, next) => {
   next();
 });
 
+exports.optionalAuth = catchAsync(async (req, res, next) => {
+  let token;
+  if (req.headers.authorization?.startsWith('Bearer ')) {
+    token = req.headers.authorization.split(' ')[1];
+  }
+
+  if (token) {
+    try {
+      const payload = verifyAccessToken(token);
+      const user = await User.findById(payload.id);
+      if (user) req.user = user;
+    } catch (_) {
+      // Token expired, malformed, or user not found - proceed gracefully without req.user
+    }
+  }
+  next();
+});
+
 exports.restrictTo = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {

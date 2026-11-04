@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/hooks/useRedux';
-import { logoutUser } from '@/store/slices/authSlice';
+import { logoutUser, performImmediateLogout } from '@/store/slices/authSlice';
 import { uiActions } from '@/store/slices/uiSlice';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
@@ -144,16 +144,19 @@ export function Sidebar() {
         )}
 
         <button
-          onClick={() => dispatch(logoutUser())}
-          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors group"
+          type="button"
+          onClick={() => performImmediateLogout(dispatch)}
+          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors group cursor-pointer active:scale-95"
+          title="Sign Out"
         >
           <LogOut className="w-4 h-4 shrink-0 transition-transform group-hover:-translate-x-0.5" />
           {sidebarOpen && <span>Sign Out</span>}
         </button>
 
         <button
+          type="button"
           onClick={() => dispatch(uiActions.toggleSidebar())}
-          className="flex items-center gap-3 w-full px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+          className="flex items-center gap-3 w-full px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer active:scale-95"
           aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
         >
           <ChevronLeft className={cn('w-4 h-4 shrink-0 transition-transform', !sidebarOpen && 'rotate-180')} />

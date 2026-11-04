@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/hooks/useRedux';
-import { logoutUser } from '@/store/slices/authSlice';
+import { logoutUser, performImmediateLogout } from '@/store/slices/authSlice';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 const navItems = [
@@ -211,11 +211,12 @@ export function MobileNav() {
               )}
 
               <button
+                type="button"
                 onClick={() => {
                   setIsOpen(false);
-                  dispatch(logoutUser());
+                  performImmediateLogout(dispatch);
                 }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors cursor-pointer active:scale-95"
               >
                 <LogOut className="w-4 h-4 shrink-0" />
                 <span>Sign Out</span>

@@ -242,14 +242,29 @@ exports.refreshToken = catchAsync(async (req, res) => {
 });
 
 exports.logout = catchAsync(async (req, res) => {
-  const token = req.cookies.refreshToken;
+  const token = req.cookies?.refreshToken;
 
-  if (token && req.user) {
-    const user = await User.findById(req.user._id).select('+refreshTokens');
-    if (user) {
-      user.refreshTokens = user.refreshTokens.filter((t) => t !== token);
-      await user.save();
+  try {
+    if (token && req.user) {
+      const user = await User.findById(req.user._id).select('+refreshTokens');
+      if (user) {
+        user.refreshTokens = user.refreshTokens.filter((t) => t !== token);
+        await user.save();
+      }
+    } else if (token) {
+      // User not authenticated via header, attempt recovery from refresh token payload
+      const { verifyRefreshToken } = require('../utils/jwt');
+      const payload = verifyRefreshToken(token);
+      if (payload?.id) {
+        const user = await User.findById(payload.id).select('+refreshTokens');
+        if (user) {
+          user.refreshTokens = user.refreshTokens.filter((t) => t !== token);
+          await user.save();
+        }
+      }
     }
+  } catch (_) {
+    // Suppress token errors - logging out must always succeed
   }
 
   clearRefreshCookie(res);

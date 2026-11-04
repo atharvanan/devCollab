@@ -4,8 +4,19 @@ import { Sidebar } from './Sidebar';
 import { MobileNav } from './MobileNav';
 import { cn } from '@/lib/utils';
 
+import { useEffect } from 'react';
+
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const sidebarOpen = useAppSelector((s) => s.ui.sidebarOpen);
+  const { user, accessToken, initialized } = useAppSelector((s) => s.auth);
+
+  useEffect(() => {
+    if (initialized && !user && !accessToken) {
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
+    }
+  }, [initialized, user, accessToken]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col w-full max-w-[100vw] overflow-x-hidden">

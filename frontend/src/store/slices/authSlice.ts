@@ -74,11 +74,24 @@ export const refreshAccessToken = createAsyncThunk('auth/refresh', async (_, { r
 
 export const logoutUser = createAsyncThunk('auth/logout', async (_, { dispatch }) => {
   try {
-    await apiClient.post('/auth/logout');
+    apiClient.post('/auth/logout').catch(() => {});
   } finally {
     dispatch(authSlice.actions.clearAuth());
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
   }
 });
+
+export const performImmediateLogout = (dispatch: any) => {
+  try {
+    apiClient.post('/auth/logout').catch(() => {});
+  } catch (_) {}
+  dispatch(authSlice.actions.clearAuth());
+  if (typeof window !== 'undefined') {
+    window.location.href = '/login';
+  }
+};
 
 export const fetchMe = createAsyncThunk('auth/me', async (_, { rejectWithValue }) => {
   try {

@@ -49,7 +49,7 @@ const processQueue = (error: any, token: string | null = null) => {
 };
 
 // These auth routes handle their own errors — never trigger token refresh for them
-const AUTH_BYPASS_ROUTES = ['/auth/login', '/auth/register', '/auth/verify-otp', '/auth/resend-otp'];
+const AUTH_BYPASS_ROUTES = ['/auth/login', '/auth/register', '/auth/verify-otp', '/auth/resend-otp', '/auth/logout'];
 
 apiClient.interceptors.response.use(
   (response) => response,

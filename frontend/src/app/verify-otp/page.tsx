@@ -8,6 +8,7 @@ import { apiClient } from '@/lib/apiClient';
 import { useAppDispatch } from '@/hooks/useRedux';
 import { setCredentials } from '@/store/slices/authSlice';
 import { useToast } from '@/components/ui/Toast';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 const OTP_LENGTH = 6;
 
@@ -215,12 +216,15 @@ function VerifyOTPContent() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+      <div className="min-h-screen flex items-center justify-center bg-background px-4 relative">
+        <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+          <ThemeToggle showLabel className="border border-border/70 bg-card/80 backdrop-blur-sm shadow-xs px-3 py-1.5 rounded-lg" />
+        </div>
         <div className="text-center space-y-4">
           <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-10 h-10 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <h2 className="text-2xl font-bold">Email Verified!</h2>
+          <h2 className="text-2xl font-bold">Verification Successful!</h2>
           <p className="text-muted-foreground text-sm">Redirecting you to your dashboard...</p>
           <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
         </div>
@@ -231,7 +235,10 @@ function VerifyOTPContent() {
   // ─── STEP 1: No params → ask for email and trigger OTP send ────────────────
   if (!otpSent) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
+      <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8 relative">
+        <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+          <ThemeToggle showLabel className="border border-border/70 bg-card/80 backdrop-blur-sm shadow-xs px-3 py-1.5 rounded-lg" />
+        </div>
         <div className="w-full max-w-sm space-y-8">
           <div className="text-center space-y-3">
             <Link href="/" className="inline-block group transition-transform hover:scale-105">
@@ -297,9 +304,14 @@ function VerifyOTPContent() {
     );
   }
 
+  const isLoginMode = searchParams.get('mode') === 'login';
+
   // ─── STEP 2: OTP sent → show the 6-box entry UI ──────────────────────────
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8 relative">
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+        <ThemeToggle showLabel className="border border-border/70 bg-card/80 backdrop-blur-sm shadow-xs px-3 py-1.5 rounded-lg" />
+      </div>
       <div className="w-full max-w-sm space-y-8">
         {/* Header */}
         <div className="text-center space-y-3">
@@ -312,11 +324,13 @@ function VerifyOTPContent() {
             <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
               <ShieldCheck className="w-6 h-6 text-primary" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight">Verify your email</h1>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {isLoginMode ? 'Sign-In Verification' : 'Verify your email'}
+            </h1>
             <p className="text-sm text-muted-foreground mt-1">
               {email ? (
                 <>
-                  We sent a code to{' '}
+                  We sent a 6-digit code to{' '}
                   <strong className="text-foreground font-semibold">{email}</strong>
                 </>
               ) : (

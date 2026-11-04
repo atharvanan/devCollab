@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { useAppDispatch, useAppSelector } from '@/hooks/useRedux';
 import { loginUser } from '@/store/slices/authSlice';
 import { useToast } from '@/components/ui/Toast';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 const schema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -41,6 +42,16 @@ export default function LoginPage() {
     const result = await dispatch(loginUser(data));
 
     if (loginUser.fulfilled.match(result)) {
+      const payload = result.payload as any;
+      if (payload?.requiresOTP) {
+        toast.info('OTP verification code sent to your email.');
+        const params = new URLSearchParams();
+        if (payload.userId) params.set('userId', payload.userId);
+        if (payload.email) params.set('email', payload.email);
+        params.set('mode', 'login');
+        router.push(`/verify-otp?${params.toString()}`);
+        return;
+      }
       toast.success('Welcome back! Redirecting to your dashboard...');
       router.push('/dashboard');
     } else if (
@@ -72,7 +83,10 @@ export default function LoginPage() {
   // If unverified, show a dedicated state instead of the form
   if (unverifiedData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
+      <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8 relative">
+        <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+          <ThemeToggle showLabel className="border border-border/70 bg-card/80 backdrop-blur-sm shadow-xs px-3 py-1.5 rounded-lg" />
+        </div>
         <div className="w-full max-w-sm space-y-6 text-center">
           {/* Logo */}
           <Link href="/" className="inline-block">
@@ -114,6 +128,11 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background bg-grid-subtle px-4 py-8 relative">
+      {/* Top Bar Theme Toggle */}
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+        <ThemeToggle showLabel className="border border-border/70 bg-card/80 backdrop-blur-sm shadow-xs px-3 py-1.5 rounded-lg" />
+      </div>
+
       <div className="w-full max-w-md space-y-6">
         {/* Header */}
         <div className="text-center space-y-3">

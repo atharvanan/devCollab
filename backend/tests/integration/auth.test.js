@@ -55,6 +55,28 @@ describe('POST /api/v1/auth/login', () => {
     expect(res.body.data.accessToken).toBeDefined();
   });
 
+  it('triggers OTP verification for existing user when OTP is required and completes login upon OTP verification', async () => {
+    const loginRes = await request(app)
+      .post('/api/v1/auth/login')
+      .set('x-require-otp', 'true')
+      .send({ email: 'login@example.com', password: 'Password123' });
+
+    expect(loginRes.status).toBe(200);
+    expect(loginRes.body.requiresOTP).toBe(true);
+    expect(loginRes.body.data.email).toBe('login@example.com');
+
+    const userInDb = await User.findOne({ email: 'login@example.com' }).select('+otp');
+    expect(userInDb.otp).toBeDefined();
+
+    const verifyRes = await request(app)
+      .post('/api/v1/auth/verify-otp')
+      .send({ email: 'login@example.com', otp: userInDb.otp });
+
+    expect(verifyRes.status).toBe(200);
+    expect(verifyRes.body.data.accessToken).toBeDefined();
+    expect(verifyRes.body.data.user.email).toBe('login@example.com');
+  });
+
   it('rejects wrong password', async () => {
     const res = await request(app).post('/api/v1/auth/login').send({
       email: 'login@example.com', password: 'WrongPassword',

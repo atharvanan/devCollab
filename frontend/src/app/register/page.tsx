@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/Input';
 import { useAppDispatch, useAppSelector } from '@/hooks/useRedux';
 import { registerUser } from '@/store/slices/authSlice';
 import { useToast } from '@/components/ui/Toast';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 const schema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -107,7 +108,10 @@ export default function RegisterPage() {
   // Step 2: show email sent confirmation
   if (registered) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
+      <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8 relative">
+        <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+          <ThemeToggle showLabel className="border border-border/70 bg-card/80 backdrop-blur-sm shadow-xs px-3 py-1.5 rounded-lg" />
+        </div>
         <div className="w-full max-w-sm space-y-6">
           {/* Step indicator */}
           <div className="flex items-center justify-center gap-2">
@@ -172,6 +176,11 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background bg-grid-subtle px-4 py-8 relative">
+      {/* Top Bar Theme Toggle */}
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+        <ThemeToggle showLabel className="border border-border/70 bg-card/80 backdrop-blur-sm shadow-xs px-3 py-1.5 rounded-lg" />
+      </div>
+
       <div className="w-full max-w-md space-y-6">
         {/* Header */}
         <div className="text-center space-y-3">

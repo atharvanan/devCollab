@@ -31,6 +31,14 @@ const initialState: AuthState = {
 export const loginUser = createAsyncThunk('auth/login', async (credentials: { email: string; password: string }, { rejectWithValue }) => {
   try {
     const res = await apiClient.post('/auth/login', credentials);
+    if (res.data?.requiresOTP || res.data?.data?.requiresOTP) {
+      return {
+        requiresOTP: true,
+        userId: res.data?.data?.userId,
+        email: res.data?.data?.email || credentials.email,
+        message: res.data?.message || 'OTP verification code sent to your email.',
+      };
+    }
     return res.data.data;
   } catch (err: any) {
     const data = err.response?.data;
@@ -111,6 +119,9 @@ const authSlice = createSlice({
       .addCase(loginUser.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(loginUser.fulfilled, (state, action) => {
         state.loading = false;
+        if ((action.payload as any)?.requiresOTP) {
+          return;
+        }
         state.user = action.payload.user;
         state.accessToken = action.payload.accessToken;
         state.initialized = true;

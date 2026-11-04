@@ -8,6 +8,8 @@ import { useAppDispatch, useAppSelector } from '@/hooks/useRedux';
 import { boardActions } from '@/store/slices/boardSlice';
 import { useSocket, useJoinRoom } from '@/hooks/useSocket';
 import { COLUMNS, COLUMN_LABELS } from '@/lib/utils';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useRef } from 'react';
 import { BoardColumn } from './BoardColumn';
 import { TaskModal } from './TaskModal';
 
@@ -111,10 +113,42 @@ export function KanbanBoard({ projectId, project }: { projectId: string; project
     moveMutation.mutate({ taskId, column: toColumn, order: newOrder });
   };
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const scrollBoard = (direction: 'left' | 'right') => {
+    if (!scrollContainerRef.current) return;
+    const offset = direction === 'left' ? -380 : 380;
+    scrollContainerRef.current.scrollBy({ left: offset, behavior: 'smooth' });
+  };
+
   return (
     <div className="w-full max-w-full min-w-0">
+            {/* Quick horizontal board navigation helper */}
+      <div className="flex items-center justify-between pb-2 px-1">
+        <span className="text-[11px] text-muted-foreground font-medium">
+          Workflow Columns
+        </span>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => scrollBoard('left')}
+            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground bg-secondary/60 hover:bg-secondary border border-border/70 rounded-md transition-colors cursor-pointer"
+            title="Scroll left to Backlog / To Do"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" /> Scroll Left
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollBoard('right')}
+            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground bg-secondary/60 hover:bg-secondary border border-border/70 rounded-md transition-colors cursor-pointer"
+            title="Scroll right to Review / Done"
+          >
+            Scroll Right <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-3 pt-1 px-1 touch-pan-x scrollbar-none">
+        <div ref={scrollContainerRef} className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 touch-pan-x board-horizontal-scrollbar">
           {COLUMNS.map((col) => (
             <SortableContext
               key={col}

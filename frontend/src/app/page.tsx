@@ -20,7 +20,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
       <div className="flex flex-col items-center space-y-4">
-        <div className="w-12 h-12 bg-primary rounded-xs flex items-center justify-center shadow-xs">
+        <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-md">
           <Code2 className="w-6 h-6 text-white" />
         </div>
         <div className="w-6 h-6 border-3 border-primary border-t-transparent rounded-full animate-spin" />

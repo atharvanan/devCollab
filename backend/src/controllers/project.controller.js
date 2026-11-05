@@ -8,9 +8,8 @@ const { ROLE_DISPLAY_NAMES } = require('../utils/roleCompliance');
 const { logGovernanceAudit } = require('../utils/auditLogger');
 
 exports.createProject = catchAsync(async (req, res) => {
-  // Authorization Rule: Only Platform Administrators or users explicitly authorized
-  // with canCreateProjects may create new projects (GOVERNANCE-AUTH-001)
-  const canCreate = req.user.role === 'admin' || req.user.canCreateProjects === true;
+  // Anyone who creates a project is its Project Manager and manages it end to end with all rights
+  const canCreate = req.user.role === 'admin' || req.user.canCreateProjects !== false;
   if (!canCreate) {
     await logGovernanceAudit({
       actor: req.user,

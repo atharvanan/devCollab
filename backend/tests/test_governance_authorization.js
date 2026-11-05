@@ -126,13 +126,13 @@ async function runGovernanceTests() {
   const regRes = await request('/auth/register', 'POST', regPayload);
   assert(regRes.status === 201, '3. Standard user registration succeeds with HTTP 201');
 
-  // Verify DB state: account must strictly be regular user and cannot create projects
+  // Verify DB state: account must strictly be regular user and can create projects as PM
   const registeredUserInDB = await User.findOne({ email: testEmail });
   assert(
     registeredUserInDB &&
     registeredUserInDB.role === 'user' &&
-    registeredUserInDB.canCreateProjects === false,
-    '4. DB Verification: Account assigned default non-privileged state (role: "user", canCreateProjects: false)'
+    registeredUserInDB.canCreateProjects === true,
+    '4. DB Verification: Account assigned default role "user" with project creation rights enabled'
   );
 
   // Verify OTP for this new user to get token
@@ -144,9 +144,10 @@ async function runGovernanceTests() {
   const newDevToken = otpRes.body.data.accessToken;
 
   // -------------------------------------------------------------------------
-  // SECTION 2: Project Creation Authorization Enforcement
+  // SECTION 2: Project Creation & Creator as Project Manager
   // -------------------------------------------------------------------------
-  // Attack vector: Unprivileged user attempts to create a project
+  // When an explicitly restricted user attempts to create a project
+  await User.updateOne({ _id: registeredUserInDB._id }, { $set: { canCreateProjects: false } });
   const badCreateRes = await request('/projects', 'POST', {
     name: 'Unauthorized Project Attempt',
     description: 'Should fail with 403',
@@ -154,8 +155,11 @@ async function runGovernanceTests() {
 
   assert(
     badCreateRes.status === 403,
-    '5. Authorization Guard: Ordinary unprivileged user cannot create projects (HTTP 403 Forbidden)'
+    '5. Authorization Guard: Restricted user cannot create projects (HTTP 403 Forbidden)'
   );
+
+  // Re-enable permission and verify creator becomes Owner and PM
+  await User.updateOne({ _id: registeredUserInDB._id }, { $set: { canCreateProjects: true } });
 
   // Legitimate creation by Platform Admin
   const goodCreateRes = await request('/projects', 'POST', {

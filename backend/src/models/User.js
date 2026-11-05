@@ -9,7 +9,7 @@ const userSchema = new mongoose.Schema(
     avatar: { type: String, default: '' },
     avatarPublicId: { type: String, default: '' },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
-    canCreateProjects: { type: Boolean, default: false },
+    canCreateProjects: { type: Boolean, default: true },
     isVerified: { type: Boolean, default: false },
     otp: { type: String, select: false },
     otpExpires: { type: Date, select: false },

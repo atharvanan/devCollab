@@ -84,17 +84,17 @@ export default function LoginPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8 relative">
         <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
-          <ThemeToggle showLabel className="border border-border/70 bg-card/80 backdrop-blur-sm shadow-xs px-3 py-1.5 rounded-sm" />
+          <ThemeToggle showLabel className="border border-border/70 bg-card/80 backdrop-blur-sm shadow-xs px-3 py-1.5 rounded-lg" />
         </div>
         <div className="w-full max-w-sm space-y-6 text-center">
           <Link href="/" className="inline-block">
-            <div className="w-11 h-11 bg-primary rounded-sm flex items-center justify-center mx-auto shadow-sm">
-              <Code2 className="w-5 h-5 text-white" />
+            <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center mx-auto shadow-md">
+              <Code2 className="w-6 h-6 text-white" />
             </div>
           </Link>
 
           <div className="space-y-3">
-            <div className="w-14 h-14 bg-amber-100 dark:bg-amber-900/30 rounded-sm flex items-center justify-center mx-auto">
+            <div className="w-14 h-14 bg-amber-100 dark:bg-amber-900/30 rounded-2xl flex items-center justify-center mx-auto">
               <MailCheck className="w-7 h-7 text-amber-600 dark:text-amber-400" />
             </div>
             <h1 className="text-xl font-bold tracking-tight">Verify your email</h1>
@@ -124,15 +124,15 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background bg-grid-subtle px-4 py-8 relative">
       <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
-        <ThemeToggle showLabel className="border border-border/70 bg-card/80 backdrop-blur-sm shadow-xs px-3 py-1.5 rounded-sm" />
+        <ThemeToggle showLabel className="border border-border/70 bg-card/80 backdrop-blur-sm shadow-xs px-3 py-1.5 rounded-lg" />
       </div>
 
       <div className="w-full max-w-md space-y-6">
         {/* Header */}
         <div className="text-center space-y-3">
-          <Link href="/" className="inline-block group transition-transform hover:scale-102">
-            <div className="w-11 h-11 rounded-sm bg-primary flex items-center justify-center mx-auto shadow-sm">
-              <Code2 className="w-5 h-5 text-white" />
+          <Link href="/" className="inline-block group transition-transform hover:scale-105">
+            <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center mx-auto shadow-md">
+              <Code2 className="w-6 h-6 text-white" />
             </div>
           </Link>
           <div>
@@ -144,7 +144,7 @@ export default function LoginPage() {
         </div>
 
         {/* Card Form */}
-        <div className="p-6 sm:p-7 rounded-sm border border-border bg-card shadow-sm">
+        <div className="p-7 sm:p-8 rounded-2xl border border-border/80 bg-card shadow-lg">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1.5">
               <label htmlFor="login-email" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">

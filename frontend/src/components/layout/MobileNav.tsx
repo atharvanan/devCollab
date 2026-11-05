@@ -60,7 +60,7 @@ export function MobileNav() {
           <button
             onClick={() => setIsOpen(true)}
             aria-label="Open navigation menu"
-            className="p-1.5 -ml-1.5 rounded-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            className="p-1.5 -ml-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
           >
             <Menu className="w-5 h-5" />
           </button>
@@ -70,7 +70,7 @@ export function MobileNav() {
             href="/dashboard"
             className="flex items-center gap-2 font-semibold text-foreground group"
           >
-            <div className="w-7 h-7 bg-primary rounded-xs flex items-center justify-center shrink-0 shadow-xs">
+            <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center shrink-0 shadow-xs">
               <Code2 className="w-4 h-4 text-white" />
             </div>
             <span className="text-base font-bold tracking-tight">DevCollab</span>
@@ -79,11 +79,11 @@ export function MobileNav() {
 
         {/* Right side mobile icons */}
         <div className="flex items-center gap-1.5">
-          <ThemeToggle className="rounded-xs" />
+          <ThemeToggle className="rounded-lg" />
 
           <Link
             href="/notifications"
-            className="p-2 relative rounded-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            className="p-2 relative rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             aria-label="View notifications"
           >
             <Bell className="w-5 h-5" />
@@ -98,10 +98,10 @@ export function MobileNav() {
                 <img
                   src={user.avatar}
                   alt={user.name}
-                  className="w-7 h-7 rounded-xs object-cover border border-border"
+                  className="w-7 h-7 rounded-full object-cover border border-border"
                 />
               ) : (
-                <div className="w-7 h-7 rounded-xs bg-muted flex items-center justify-center text-xs font-bold text-foreground border border-border">
+                <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-foreground border border-border">
                   {user.name?.[0]?.toUpperCase() || 'U'}
                 </div>
               )}
@@ -129,7 +129,7 @@ export function MobileNav() {
                 onClick={() => setIsOpen(false)}
                 className="flex items-center gap-2.5 font-bold text-base text-foreground"
               >
-                <div className="w-7 h-7 bg-primary rounded-xs flex items-center justify-center shrink-0 shadow-xs">
+                <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center shrink-0 shadow-xs">
                   <Code2 className="w-4 h-4 text-white" />
                 </div>
                 <span>DevCollab</span>
@@ -137,7 +137,7 @@ export function MobileNav() {
               <button
                 onClick={() => setIsOpen(false)}
                 aria-label="Close navigation menu"
-                className="p-1.5 rounded-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -148,7 +148,7 @@ export function MobileNav() {
               <Link
                 href="/projects/new"
                 onClick={() => setIsOpen(false)}
-                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xs text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs"
+                className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs"
               >
                 <Plus className="w-4 h-4" /> New Project
               </Link>
@@ -164,7 +164,7 @@ export function MobileNav() {
                     href={href}
                     onClick={() => setIsOpen(false)}
                     className={cn(
-                      'flex items-center gap-3 px-3 py-2 rounded-xs text-xs font-medium transition-colors relative',
+                      'flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-colors relative',
                       active
                         ? 'bg-primary/10 text-primary font-semibold'
                         : 'text-muted-foreground hover:bg-accent hover:text-foreground'
@@ -173,7 +173,7 @@ export function MobileNav() {
                     <Icon className="w-4 h-4 shrink-0" />
                     <span className="flex-1">{label}</span>
                     {label === 'Notifications' && unreadCount > 0 && (
-                      <span className="bg-primary text-white text-[10px] font-mono rounded-xs font-bold px-1.5 py-0.2 min-w-[18px] text-center">
+                      <span className="bg-primary text-white text-[10px] font-mono rounded-full font-bold px-2 py-0.5 min-w-[18px] text-center">
                         {unreadCount > 9 ? '9+' : unreadCount}
                       </span>
                     )}
@@ -190,10 +190,10 @@ export function MobileNav() {
                     <img
                       src={user.avatar}
                       alt={user.name}
-                      className="w-8 h-8 rounded-xs object-cover border border-border shrink-0"
+                      className="w-8 h-8 rounded-full object-cover border border-border shrink-0"
                     />
                   ) : (
-                    <div className="w-8 h-8 rounded-xs bg-muted flex items-center justify-center text-xs font-bold text-foreground border border-border shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-foreground border border-border shrink-0">
                       {user.name?.[0]?.toUpperCase() || 'U'}
                     </div>
                   )}
@@ -216,7 +216,7 @@ export function MobileNav() {
                   setIsOpen(false);
                   performImmediateLogout(dispatch);
                 }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xs text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors cursor-pointer active:scale-98"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors cursor-pointer active:scale-98"
               >
                 <LogOut className="w-4 h-4 shrink-0" />
                 <span>Sign Out</span>

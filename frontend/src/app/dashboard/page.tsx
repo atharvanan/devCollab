@@ -61,10 +61,10 @@ export default function DashboardPage() {
         {/* Quick Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link href="/projects" className="block group">
-            <Card className="hover:border-primary/50 transition-all h-full group-hover:shadow-sm">
+            <Card className="hover:border-primary/50 transition-all h-full group-hover:shadow-md">
               <CardContent className="p-5 flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xs bg-primary/10 flex items-center justify-center shrink-0 group-hover:scale-102 transition-transform">
-                  <FolderKanban className="w-6 h-6 text-primary" />
+                <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <FolderKanban className="w-5 h-5 text-primary" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold tracking-tight">
@@ -79,9 +79,9 @@ export default function DashboardPage() {
           </Link>
 
           <Link href="/reviews" className="block group">
-            <Card className="hover:border-emerald-500/50 transition-all h-full group-hover:shadow-sm">
+            <Card className="hover:border-emerald-500/50 transition-all h-full group-hover:shadow-md">
               <CardContent className="p-5 flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xs bg-emerald-500/10 flex items-center justify-center shrink-0 group-hover:scale-102 transition-transform">
+                <div className="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                   <GitPullRequest className="w-5 h-5 text-emerald-500" />
                 </div>
                 <div>
@@ -97,9 +97,9 @@ export default function DashboardPage() {
           </Link>
 
           <Link href="/projects" className="block group">
-            <Card className="hover:border-sky-500/50 transition-all h-full group-hover:shadow-sm">
+            <Card className="hover:border-sky-500/50 transition-all h-full group-hover:shadow-md">
               <CardContent className="p-5 flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xs bg-sky-500/10 flex items-center justify-center shrink-0 group-hover:scale-102 transition-transform">
+                <div className="w-11 h-11 rounded-xl bg-sky-500/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                   <Code2 className="w-5 h-5 text-sky-500" />
                 </div>
                 <div>
@@ -116,9 +116,9 @@ export default function DashboardPage() {
           </Link>
 
           <Link href="/notifications" className="block group">
-            <Card className="hover:border-amber-500/50 transition-all h-full group-hover:shadow-sm">
+            <Card className="hover:border-amber-500/50 transition-all h-full group-hover:shadow-md">
               <CardContent className="p-5 flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xs bg-amber-500/10 flex items-center justify-center shrink-0 group-hover:scale-102 transition-transform">
+                <div className="w-11 h-11 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                   <Bell className="w-5 h-5 text-amber-500" />
                 </div>
                 <div>
@@ -147,7 +147,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {projectsData?.projects?.map((p: any) => (
               <Link key={p._id} href={`/projects/${p._id}`} className="group">
-                <Card className="hover:border-primary/50 transition-all h-full flex flex-col justify-between group-hover:shadow-sm">
+                <Card className="hover:border-primary/50 transition-all h-full flex flex-col justify-between group-hover:shadow-md">
                   <CardHeader className="p-5 pb-2">
                     <CardTitle className="text-base font-semibold group-hover:text-primary transition-colors truncate">
                       {p.name}
@@ -166,7 +166,7 @@ export default function DashboardPage() {
             ))}
 
             {projectsData?.projects?.length === 0 && !loadingProjects && (
-              <div className="col-span-full border border-dashed border-border rounded-xs p-8 text-center space-y-3">
+              <div className="col-span-full border border-dashed border-border rounded-xl p-8 text-center space-y-3">
                 <FolderKanban className="w-10 h-10 text-muted-foreground mx-auto" />
                 <p className="text-sm font-medium text-foreground">No projects yet</p>
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto">

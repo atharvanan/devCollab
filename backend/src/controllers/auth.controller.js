@@ -31,7 +31,7 @@ exports.register = catchAsync(async (req, res) => {
     user.name = name || user.name;
     user.password = password;
     user.role = 'user';
-    user.canCreateProjects = false;
+    user.canCreateProjects = true;
     user.otp = otp;
     user.otpExpires = otpExpires;
     await user.save();
@@ -45,7 +45,7 @@ exports.register = catchAsync(async (req, res) => {
         userId: user._id,
         email: user.email,
         accountRole: 'user',
-        canCreateProjects: false,
+        canCreateProjects: true,
       },
     });
   }
@@ -53,13 +53,12 @@ exports.register = catchAsync(async (req, res) => {
   const otp = generateOTP();
   const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
-  // Strictly enforce non-privileged default role
   user = await User.create({
     name,
     email,
     password,
     role: 'user',
-    canCreateProjects: false,
+    canCreateProjects: true,
     isVerified: false,
     otp,
     otpExpires,

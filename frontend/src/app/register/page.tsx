@@ -178,15 +178,15 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-background bg-grid-subtle px-4 py-8 relative">
       {/* Top Bar Theme Toggle */}
       <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
-        <ThemeToggle showLabel className="border border-border/70 bg-card/80 backdrop-blur-sm shadow-xs px-3 py-1.5 rounded-xs" />
+        <ThemeToggle showLabel className="border border-border/70 bg-card/80 backdrop-blur-sm shadow-xs px-3 py-1.5 rounded-lg" />
       </div>
 
       <div className="w-full max-w-md space-y-6">
         {/* Header */}
         <div className="text-center space-y-3">
-          <Link href="/" className="inline-block group transition-transform hover:scale-102">
-            <div className="w-11 h-11 rounded-xs bg-primary flex items-center justify-center mx-auto shadow-xs">
-              <Code2 className="w-5 h-5 text-white" />
+          <Link href="/" className="inline-block group transition-transform hover:scale-105">
+            <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center mx-auto shadow-md">
+              <Code2 className="w-6 h-6 text-white" />
             </div>
           </Link>
           <div>
@@ -198,7 +198,7 @@ export default function RegisterPage() {
         </div>
 
         {/* Card Form */}
-        <div className="p-6 sm:p-7 rounded-xs border border-border bg-card shadow-sm">
+        <div className="p-7 sm:p-8 rounded-2xl border border-border/80 bg-card shadow-lg">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-1.5">
             <label htmlFor="reg-name" className="text-sm font-medium block">

@@ -6,7 +6,7 @@ export const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDi
     <div
       ref={ref}
       className={cn(
-        'rounded-xs border border-border/80 bg-card text-card-foreground shadow-2xs transition-all duration-150',
+        'rounded-xl border border-border/70 bg-card text-card-foreground shadow-sm hover:shadow-md transition-all duration-200',
         className
       )}
       {...props}
@@ -59,7 +59,7 @@ export function Badge({ className, variant = 'default', dot = false, children, .
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-xs px-2 py-0.5 text-[11px] font-mono font-medium tracking-tight select-none border',
+        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium tracking-tight select-none border shadow-2xs',
         variantStyles[variant] || variantStyles.default,
         className
       )}
@@ -78,14 +78,14 @@ export function Avatar({ src, name, size = 32 }: { src?: string; name: string; s
         src={src}
         alt={name}
         style={{ width: size, height: size }}
-        className="rounded-xs object-cover border border-border/70 shrink-0"
+        className="rounded-full object-cover border border-border/80 shrink-0 shadow-2xs"
       />
     );
   }
   return (
     <div
       style={{ width: size, height: size, fontSize: Math.max(10, size * 0.4) }}
-      className="rounded-xs bg-muted text-foreground font-semibold border border-border flex items-center justify-center shrink-0 select-none shadow-2xs"
+      className="rounded-full bg-muted text-foreground font-semibold border border-border flex items-center justify-center shrink-0 select-none shadow-2xs"
     >
       {name?.[0]?.toUpperCase() || '?'}
     </div>

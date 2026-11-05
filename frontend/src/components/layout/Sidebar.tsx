@@ -48,7 +48,7 @@ export function Sidebar() {
         )}
         title="DevCollab Workspace"
       >
-        <div className="w-8 h-8 rounded-xs bg-primary flex items-center justify-center shrink-0 shadow-xs group-hover:scale-102 transition-transform">
+        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
           <Code2 className="w-4.5 h-4.5 text-white" />
         </div>
         {sidebarOpen && (
@@ -64,7 +64,7 @@ export function Sidebar() {
       </Link>
 
       {/* Navigation */}
-      <nav className="flex-1 py-3 space-y-0.5 px-2 overflow-y-auto">
+      <nav className="flex-1 py-3 space-y-1 px-2.5 overflow-y-auto">
         {navItems.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
           return (
@@ -72,14 +72,14 @@ export function Sidebar() {
               key={href}
               href={href}
               className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-xs text-xs font-medium transition-colors relative group',
+                'flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-colors relative group',
                 active
-                  ? 'bg-primary/10 text-primary font-semibold'
+                  ? 'bg-primary/10 text-primary font-semibold shadow-xs'
                   : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
               )}
             >
               {active && (
-                <span className="absolute left-0 top-1 bottom-1 w-0.5 bg-primary" />
+                <span className="absolute left-1 top-2 bottom-2 w-1 rounded-full bg-primary" />
               )}
               <Icon
                 className={cn(
@@ -91,10 +91,10 @@ export function Sidebar() {
               {label === 'Notifications' && unreadCount > 0 && (
                 <span
                   className={cn(
-                    'bg-primary text-white text-[10px] rounded-xs font-mono font-bold',
+                    'bg-primary text-white text-[10px] rounded-full font-mono font-bold',
                     sidebarOpen
-                      ? 'ml-auto px-1.5 py-0.2'
-                      : 'absolute top-1.5 right-1.5 w-3.5 h-3.5 flex items-center justify-center text-[9px]'
+                      ? 'ml-auto px-2 py-0.5'
+                      : 'absolute top-1.5 right-1.5 w-4 h-4 flex items-center justify-center text-[9px]'
                   )}
                 >
                   {unreadCount > 9 ? '9+' : unreadCount}
@@ -106,24 +106,24 @@ export function Sidebar() {
       </nav>
 
       {/* User Section & Toggles */}
-      <div className="border-t border-border/70 p-2.5 space-y-1.5 bg-accent/5">
+      <div className="border-t border-border/70 p-2.5 space-y-2 bg-accent/5">
         {/* Dark Mode Switcher */}
         <div className={cn('flex items-center', sidebarOpen ? 'justify-between px-1' : 'justify-center')}>
-          <ThemeToggle showLabel={sidebarOpen} className={sidebarOpen ? 'w-full justify-start rounded-xs' : 'rounded-xs'} />
+          <ThemeToggle showLabel={sidebarOpen} className={sidebarOpen ? 'w-full justify-start rounded-lg' : 'rounded-lg'} />
         </div>
 
         {/* User Card */}
         {sidebarOpen && user && (
-          <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-xs bg-card border border-border/60">
+          <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-card border border-border/70 shadow-xs">
             <div className="relative shrink-0">
               {user.avatar ? (
                 <img
                   src={user.avatar}
                   alt={user.name}
-                  className="w-7 h-7 rounded-xs object-cover border border-border"
+                  className="w-7 h-7 rounded-full object-cover border border-border"
                 />
               ) : (
-                <div className="w-7 h-7 rounded-xs bg-muted flex items-center justify-center text-xs font-bold text-foreground border border-border">
+                <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-foreground border border-border">
                   {user.name?.[0]?.toUpperCase() || 'U'}
                 </div>
               )}
@@ -145,7 +145,7 @@ export function Sidebar() {
         <button
           type="button"
           onClick={() => performImmediateLogout(dispatch)}
-          className="flex items-center gap-3 w-full px-3 py-1.5 rounded-xs text-xs font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors group cursor-pointer active:scale-98"
+          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors group cursor-pointer active:scale-98"
           title="Sign Out"
         >
           <LogOut className="w-3.5 h-3.5 shrink-0 transition-transform group-hover:-translate-x-0.5" />
@@ -155,7 +155,7 @@ export function Sidebar() {
         <button
           type="button"
           onClick={() => dispatch(uiActions.toggleSidebar())}
-          className="flex items-center gap-3 w-full px-3 py-1.5 rounded-xs text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer active:scale-98"
+          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer active:scale-98"
           aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
         >
           <ChevronLeft className={cn('w-3.5 h-3.5 shrink-0 transition-transform', !sidebarOpen && 'rotate-180')} />

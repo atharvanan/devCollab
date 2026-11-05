@@ -79,7 +79,7 @@ export default function NewProjectPage() {
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
               placeholder="Summary of project architecture and roadmap..."
-              className="w-full rounded-xs border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="w-full rounded-lg border border-border/70 bg-background px-3.5 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:border-primary shadow-xs transition-all"
             />
           </div>
 
@@ -94,14 +94,14 @@ export default function NewProjectPage() {
 
           <div>
             <label className="text-sm font-medium mb-1.5 block">Visibility</label>
-            <div className="flex gap-2">
+            <div className="flex gap-2.5">
               <button
                 type="button"
                 onClick={() => setVisibility('private')}
-                className={`flex-1 py-2 rounded-xs text-xs font-semibold border transition-colors ${
+                className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-all ${
                   visibility === 'private'
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-input hover:bg-accent text-muted-foreground'
+                    ? 'border-primary bg-primary/10 text-primary shadow-xs'
+                    : 'border-border/70 hover:bg-accent text-muted-foreground'
                 }`}
               >
                 Private
@@ -109,10 +109,10 @@ export default function NewProjectPage() {
               <button
                 type="button"
                 onClick={() => setVisibility('public')}
-                className={`flex-1 py-2 rounded-xs text-xs font-semibold border transition-colors ${
+                className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-all ${
                   visibility === 'public'
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-input hover:bg-accent text-muted-foreground'
+                    ? 'border-primary bg-primary/10 text-primary shadow-xs'
+                    : 'border-border/70 hover:bg-accent text-muted-foreground'
                 }`}
               >
                 Public

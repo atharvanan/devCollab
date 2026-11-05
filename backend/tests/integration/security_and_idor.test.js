@@ -8,7 +8,6 @@ const Review = require('../../src/models/Review');
 const SecurityAudit = require('../../src/models/SecurityAudit');
 const Notification = require('../../src/models/Notification');
 const { escapeHtml } = require('../../src/services/email.service');
-const { isTestBotEmail } = require('../../src/utils/testBots');
 
 describe('Security & Vulnerability Remediation Suite (SEC-001 to SEC-020, D-01 to D-23)', () => {
   let aliceUser, bobUser, eveOutsider;
@@ -342,43 +341,31 @@ describe('Security & Vulnerability Remediation Suite (SEC-001 to SEC-020, D-01 t
     });
   });
 
-  describe('Test Bot Production Security Isolation (BOT-001, BOT-008, BOT-009)', () => {
-    it('SEC-019: Disables test-bot credential endpoint in production mode (BOT-001)', async () => {
-      const oldEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = 'production';
+  describe('Commercial Hardening: Complete Elimination of Test Bot Bypasses', () => {
+    it('SEC-019: Disables test-bot credential endpoint permanently (returns 404)', async () => {
+      const res = await request(app)
+        .get('/api/v1/projects/test/bot-credentials')
+        .set('Authorization', `Bearer ${aliceToken}`);
 
-      try {
-        const res = await request(app)
-          .get('/api/v1/projects/test/bot-credentials')
-          .set('Authorization', `Bearer ${aliceToken}`);
-
-        expect(res.status).toBe(403);
-        expect(res.body.message).toMatch(/disabled in production/i);
-      } finally {
-        process.env.NODE_ENV = oldEnv;
-      }
+      expect(res.status).toBe(404);
     });
 
-    it('SEC-020: Proves test-bot bypass cannot be activated in production (BOT-008, BOT-009)', () => {
-      const oldEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = 'production';
+    it('SEC-020: Disables seed-bots route permanently (returns 404)', async () => {
+      const res = await request(app)
+        .post(`/api/v1/projects/${project._id}/seed-bots`)
+        .set('Authorization', `Bearer ${aliceToken}`);
 
-      try {
-        // In production, isTestBotEmail must return FALSE for any email
-        expect(isTestBotEmail('alex.frontend@devcollab.com')).toBe(false);
-        expect(isTestBotEmail('attacker@devcollab.com')).toBe(false);
-        expect(isTestBotEmail('hacker@external.com')).toBe(false);
-      } finally {
-        process.env.NODE_ENV = oldEnv;
-      }
+      expect(res.status).toBe(404);
     });
 
-    it('SEC-021: Lookalike and domain suffix emails cannot hijack test-bot status (BOT-009)', () => {
-      // Test that non-bot emails on the domain are NEVER treated as bots
-      expect(isTestBotEmail('random_user@devcollab.com')).toBe(false);
-      expect(isTestBotEmail('ceo@devcollab.com')).toBe(false);
-      expect(isTestBotEmail('alex.frontend@devcollab.com.fake.com')).toBe(false);
-      expect(isTestBotEmail('alex.frontend+evil@devcollab.com')).toBe(false);
+    it('SEC-021: Strict OTP enforcement for all accounts (no 123456 bypass)', async () => {
+      const res = await request(app)
+        .post('/api/v1/auth/verify-otp')
+        .send({ email: aliceUser.email, otp: '123456' });
+
+      // Alice's OTP is not 123456, must reject
+      expect(res.status).toBe(400);
+      expect(res.body.message).toMatch(/Invalid OTP/i);
     });
   });
 });

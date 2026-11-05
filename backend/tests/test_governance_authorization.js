@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const User = require('../src/models/User');
 const Project = require('../src/models/Project');
 const SecurityAudit = require('../src/models/SecurityAudit');
+const { generateAccessToken } = require('../src/utils/jwt');
 
 const API_BASE = 'http://localhost:5000/api/v1';
 
@@ -67,34 +68,34 @@ async function runGovernanceTests() {
   const mongoUri = process.env.MONGODB_URI || 'mongodb://mongodb:27017/devcollab';
   await mongoose.connect(mongoUri);
 
-  // Authenticate Admin (Atharva)
-  const authRes1 = await request('/auth/login', 'POST', {
-    email: 'atharvanandurkar2411@gmail.com',
-    password: 'Password123',
-  });
-  const atharvaDoc = await User.findOne({ email: 'atharvanandurkar2411@gmail.com' }).select('+otp');
-  const authRes2 = await request('/auth/verify-otp', 'POST', {
-    email: 'atharvanandurkar2411@gmail.com',
-    otp: atharvaDoc.otp,
-  });
-  const adminToken = authRes2.body.data.accessToken;
-  const adminUser = authRes2.body.data.user;
-  assert(adminToken && adminUser.role === 'admin', '1. Platform Administrator (Atharva) authenticated with elevated privileges');
+  async function getOrCreateUser(name, email, role = 'user', canCreateProjects = false) {
+    let u = await User.findOne({ email });
+    if (!u) {
+      u = await User.create({ name, email, password: 'Password123!', role, canCreateProjects, isVerified: true });
+    } else {
+      u.role = role;
+      u.canCreateProjects = canCreateProjects;
+      u.isVerified = true;
+      await u.save();
+    }
+    const token = generateAccessToken(u._id);
+    return { user: u.toPublicJSON(), token };
+  }
 
-  // Authenticate Test Bots for multi-role governance testing
-  const alexAuth = await request('/auth/login', 'POST', {
-    email: 'alex.frontend@devcollab.com',
-    password: 'DevCollab123!',
-  });
-  const alexToken = alexAuth.body.data.accessToken;
-  const alexUser = alexAuth.body.data.user;
+  // Authenticate Platform Administrator
+  const adminAccount = await getOrCreateUser('Workspace Administrator', 'admin@devcollab.com', 'admin', true);
+  const adminToken = adminAccount.token;
+  const adminUser = adminAccount.user;
+  assert(adminToken && adminUser.role === 'admin', '1. Platform Administrator authenticated with elevated privileges');
 
-  const sarahAuth = await request('/auth/login', 'POST', {
-    email: 'sarah.backend@devcollab.com',
-    password: 'DevCollab123!',
-  });
-  const sarahToken = sarahAuth.body.data.accessToken;
-  const sarahUser = sarahAuth.body.data.user;
+  // Authenticate Team Members for multi-role governance testing
+  const alexAccount = await getOrCreateUser('Alex Test', 'alex.test@example.com', 'user', false);
+  const alexToken = alexAccount.token;
+  const alexUser = alexAccount.user;
+
+  const sarahAccount = await getOrCreateUser('Sarah Test', 'sarah.test@example.com', 'user', false);
+  const sarahToken = sarahAccount.token;
+  const sarahUser = sarahAccount.user;
 
   // -------------------------------------------------------------------------
   // SECTION 1: Default Registration & Privilege Escalation Defense
@@ -186,9 +187,20 @@ async function runGovernanceTests() {
   // -------------------------------------------------------------------------
   // SECTION 3: Project Manager Appointment & Revocation
   // -------------------------------------------------------------------------
-  // Make sure Alex and Sarah are members of this project
-  const alexMember = project.members.find((m) => (m.user?._id || m.user).toString() === alexUser._id.toString());
-  assert(alexMember !== undefined, '8. Member Alex Chen is active in project team');
+  // Invite Alex and Sarah as legitimate team members
+  await request(`/projects/${projectId}/invite`, 'POST', {
+    email: alexUser.email,
+    role: 'frontend_developer',
+  }, adminToken);
+
+  await request(`/projects/${projectId}/invite`, 'POST', {
+    email: sarahUser.email,
+    role: 'backend_developer',
+  }, adminToken);
+
+  const updatedProject = (await request(`/projects/${projectId}`, 'GET', null, adminToken)).body.data.project;
+  const alexMember = updatedProject.members.find((m) => (m.user?._id || m.user).toString() === alexUser._id.toString());
+  assert(alexMember !== undefined, '8. Member Alex is active in project team');
 
   // Attack vector: Contributor Alex attempts to appoint Sarah as Project Manager
   const illegalAppointRes = await request(`/projects/${projectId}/managers/${sarahUser._id}`, 'POST', {}, alexToken);

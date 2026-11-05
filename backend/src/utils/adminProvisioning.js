@@ -8,7 +8,7 @@ const logger = require('./logger');
  * Configured via PRIMARY_ADMIN_EMAIL environment variable.
  */
 function getPrimaryAdminEmail() {
-  return (process.env.PRIMARY_ADMIN_EMAIL || 'atharvanandurkar2411@gmail.com').toLowerCase().trim();
+  return (process.env.PRIMARY_ADMIN_EMAIL || 'admin@devcollab.com').toLowerCase().trim();
 }
 
 /**
@@ -30,17 +30,18 @@ async function bootstrapPlatformAdmin() {
   const adminEmail = getPrimaryAdminEmail();
   let admin = await User.findOne({ email: adminEmail }).select('+password');
 
-  const defaultPassword = process.env.INITIAL_ADMIN_PASSWORD || 'Password123';
+  const defaultPassword = process.env.INITIAL_ADMIN_PASSWORD || 'Password123!';
+  const defaultName = process.env.PRIMARY_ADMIN_NAME || 'Workspace Administrator';
 
   if (!admin) {
     admin = await User.create({
-      name: 'Atharva Nandurkar',
+      name: defaultName,
       email: adminEmail,
       password: defaultPassword,
       role: 'admin',
       canCreateProjects: true,
       isVerified: true,
-      bio: 'Lead Platform Architect & Administrator',
+      bio: process.env.PRIMARY_ADMIN_BIO || 'DevCollab Platform Administrator',
     });
 
     await logGovernanceAudit({
@@ -66,6 +67,11 @@ async function bootstrapPlatformAdmin() {
 
   if (!admin.isVerified) {
     admin.isVerified = true;
+    needsSave = true;
+  }
+
+  if (admin.name !== defaultName) {
+    admin.name = defaultName;
     needsSave = true;
   }
 

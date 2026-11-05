@@ -64,7 +64,7 @@ export default function ProjectsPage() {
             </Link>
           ) : (
             <div className="flex items-center gap-2">
-              <span className="text-xs px-3 py-1.5 rounded-lg bg-secondary/80 text-muted-foreground border border-border flex items-center gap-1.5 font-medium">
+              <span className="text-xs px-3 py-1.5 rounded-xs bg-secondary/80 text-muted-foreground border border-border flex items-center gap-1.5 font-medium">
                 <ShieldCheck className="w-3.5 h-3.5 text-muted-foreground/80" /> Member Account
               </span>
             </div>
@@ -83,12 +83,12 @@ export default function ProjectsPage() {
           </div>
 
           {/* Status Filter Tabs */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+          <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
             {(['all', 'active', 'on_hold', 'completed', 'archived'] as const).map((s) => (
               <button
                 key={s}
                 onClick={() => setStatusFilter(s)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors capitalize whitespace-nowrap ${
+                className={`px-3 py-1 rounded-xs text-xs font-medium transition-colors capitalize whitespace-nowrap ${
                   statusFilter === s
                     ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-semibold shadow-xs'
                     : 'text-muted-foreground hover:bg-accent hover:text-foreground'
@@ -103,10 +103,10 @@ export default function ProjectsPage() {
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="border border-border rounded-xl p-5 space-y-3 animate-pulse">
-                <div className="h-5 bg-muted rounded w-2/3" />
-                <div className="h-4 bg-muted/60 rounded w-full" />
-                <div className="h-4 bg-muted/40 rounded w-1/3" />
+              <div key={i} className="border border-border rounded-xs p-5 space-y-3 animate-pulse">
+                <div className="h-5 bg-muted rounded-xs w-2/3" />
+                <div className="h-4 bg-muted/60 rounded-xs w-full" />
+                <div className="h-4 bg-muted/40 rounded-xs w-1/3" />
               </div>
             ))}
           </div>
@@ -123,17 +123,17 @@ export default function ProjectsPage() {
                             {p.name}
                           </CardTitle>
                           {p.status === 'completed' && (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 shrink-0">
+                            <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-xs bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 shrink-0">
                               Completed
                             </span>
                           )}
                           {p.status === 'on_hold' && (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shrink-0">
+                            <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shrink-0">
                               On Hold
                             </span>
                           )}
                           {p.status === 'archived' && (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border border-zinc-500/20 shrink-0">
+                            <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-xs bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border border-zinc-500/20 shrink-0">
                               Archived
                             </span>
                           )}
@@ -174,7 +174,7 @@ export default function ProjectsPage() {
             ))}
 
             {(!filteredProjects || filteredProjects.length === 0) && (
-              <div className="col-span-full border border-dashed border-border rounded-xl p-12 text-center space-y-3">
+              <div className="col-span-full border border-dashed border-border rounded-xs p-12 text-center space-y-3">
                 <FolderKanban className="w-10 h-10 text-muted-foreground mx-auto" />
                 <p className="text-base font-medium">No projects found</p>
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto">

@@ -175,7 +175,7 @@ export default function ReviewDetailPage() {
                 onClose={() => setActiveLine(null)}
               />
             ) : (
-              <div className="border border-border/80 rounded-xl p-6 text-center space-y-2 bg-card/60">
+              <div className="border border-border/80 rounded-xs p-6 text-center space-y-2 bg-card/60">
                 <p className="text-sm font-medium text-foreground">Inline Comments</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   Click any line number in the code viewer to view discussion or leave a new comment.

@@ -321,7 +321,7 @@ function VerifyOTPContent() {
             </div>
           </Link>
           <div>
-            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
+            <div className="w-12 h-12 bg-primary/10 rounded-sm flex items-center justify-center mx-auto mb-3">
               <ShieldCheck className="w-6 h-6 text-primary" />
             </div>
             <h1 className="text-2xl font-bold tracking-tight">
@@ -340,27 +340,6 @@ function VerifyOTPContent() {
           </div>
         </div>
 
-
-        {email.toLowerCase().endsWith('@devcollab.com') && (
-          <div className="p-3 bg-primary/10 border border-primary/20 rounded-xl text-xs space-y-1.5 text-center">
-            <p className="font-semibold text-primary">🤖 Test Bot Account Detected</p>
-            <p className="text-muted-foreground">Universal OTP for testing accounts is <strong className="text-foreground">123456</strong>.</p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="mt-1 text-xs h-7"
-              onClick={() => {
-                const code = ['1','2','3','4','5','6'];
-                setDigits(code);
-                handleVerify('123456');
-              }}
-            >
-              Fill & Verify 123456
-            </Button>
-          </div>
-        )}
-
         {/* OTP Input Boxes */}
         <div className="space-y-3">
           <div className="flex justify-center gap-2 sm:gap-3">
@@ -377,7 +356,7 @@ function VerifyOTPContent() {
                 inputMode="numeric"
                 pattern="[0-9]*"
                 autoComplete="one-time-code"
-                className={`w-11 sm:w-14 h-14 sm:h-16 text-center text-xl sm:text-2xl font-bold rounded-lg border-2 focus:outline-none transition-all duration-150 bg-background text-foreground
+                className={`w-11 sm:w-14 h-14 sm:h-16 text-center text-xl sm:text-2xl font-bold rounded-sm border-2 focus:outline-none transition-all duration-150 bg-background text-foreground
                   ${d
                     ? 'border-primary bg-primary/5 dark:bg-primary/10'
                     : 'border-input hover:border-muted-foreground/50'

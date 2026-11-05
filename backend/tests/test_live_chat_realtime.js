@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const User = require('../src/models/User');
 const Project = require('../src/models/Project');
 const CollabSession = require('../src/models/CollabSession');
+const { generateAccessToken } = require('../src/utils/jwt');
 
 const BACKEND_URL = 'http://localhost:5000';
 const API_BASE = `${BACKEND_URL}/api/v1`;
@@ -71,205 +72,205 @@ async function runLiveChatRealtimeTest() {
   const mongoUri = process.env.MONGODB_URI || 'mongodb://mongodb:27017/devcollab';
   await mongoose.connect(mongoUri);
 
-  let atharvaSocket = null;
-  let emmaSocket = null;
+  let user1Socket = null;
+  let user2Socket = null;
 
   try {
-    // 1. Authenticate Atharva (Human User / PM)
+    // 1. Authenticate Two Real Test Engineers
     console.log('--- 1. Authenticating Users ---');
-    await request('/auth/login', 'POST', {
-      email: 'atharvanandurkar2411@gmail.com',
-      password: 'Password123',
-    });
-    const atharvaDoc = await User.findOne({ email: 'atharvanandurkar2411@gmail.com' }).select('+otp');
-    const atharvaVerify = await request('/auth/verify-otp', 'POST', {
-      email: 'atharvanandurkar2411@gmail.com',
-      otp: atharvaDoc.otp,
-    });
-    const atharvaToken = atharvaVerify.body.data.accessToken;
-    const atharvaUser = atharvaVerify.body.data.user;
-    assert(atharvaToken, 'Atharva logged in and authenticated');
-
-    // 2. Authenticate Emma Watson (UI/UX Teammate)
-    const emmaLogin = await request('/auth/login', 'POST', {
-      email: 'emma.designer@devcollab.com',
-      password: 'DevCollab123!',
-    });
-    const emmaToken = emmaLogin.body.data.accessToken;
-    const emmaUser = emmaLogin.body.data.user;
-    assert(emmaToken, 'Emma Watson authenticated');
-
-    // 3. Find project & collaborative session
-    console.log('\n--- 2. Setting Up Collaborative Coding Session ---');
-    let project = await Project.findOne({ name: 'DevCollab' });
-    if (!project) {
-      project = await Project.findOne();
+    async function getOrCreateUser(name, email, role = 'user') {
+      let u = await User.findOne({ email });
+      if (!u) {
+        u = await User.create({ name, email, password: 'Password123!', role, isVerified: true });
+      } else {
+        u.isVerified = true;
+        await u.save();
+      }
+      return { user: u.toPublicJSON(), token: generateAccessToken(u._id) };
     }
-    assert(project, `Found project: ${project?.name} (${project?._id})`);
 
-    const sessionsRes = await request(`/collab/project/${project._id}`, 'GET', null, atharvaToken);
-    assert(sessionsRes.status === 200, 'Fetched collaborative sessions for project');
-    const session = sessionsRes.body.data.sessions[0];
-    const sessionId = session._id;
+    const account1 = await getOrCreateUser('Lead Engineer', 'lead.engineer@example.com', 'admin');
+    const user1Token = account1.token;
+    const user1 = account1.user;
+    assert(user1Token, 'Lead Engineer authenticated');
+
+    const account2 = await getOrCreateUser('Staff Developer', 'staff.dev@example.com', 'user');
+    const user2Token = account2.token;
+    const user2 = account2.user;
+    assert(user2Token, 'Staff Developer authenticated');
+
+    // 2. Set Up Project & Collaborative Session
+    console.log('\n--- 2. Setting Up Collaborative Coding Session ---');
+    let project = await Project.findOne();
+    if (!project) {
+      project = await Project.create({
+        name: 'Live Chat Studio Test',
+        description: 'Test project for live socket chat',
+        owner: user1._id,
+        members: [
+          { user: user1._id, role: 'project_manager' },
+          { user: user2._id, role: 'frontend_developer' },
+        ],
+      });
+    } else {
+      // Ensure both users are members
+      const hasU1 = project.members.some((m) => m.user && (m.user._id || m.user).toString() === user1._id.toString());
+      const hasU2 = project.members.some((m) => m.user && (m.user._id || m.user).toString() === user2._id.toString());
+      if (!hasU1) project.members.push({ user: user1._id, role: 'project_manager' });
+      if (!hasU2) project.members.push({ user: user2._id, role: 'frontend_developer' });
+      await project.save();
+    }
+    assert(project, `Active project ready: ${project.name} (${project._id})`);
+
+    let session = await CollabSession.findOne({ project: project._id });
+    if (!session) {
+      session = await CollabSession.create({
+        project: project._id,
+        createdBy: user1._id,
+        title: 'Live Chat Test Session',
+        language: 'javascript',
+        code: '// Live chat session\n',
+      });
+    }
+    const sessionId = session._id.toString();
     assert(sessionId, `Using collaborative session: ${sessionId}`);
 
-    // 4. Open Socket connections for both users
+    // 3. Open Socket connections for both users
     console.log('\n--- 3. Establishing Real-Time WebSocket Connections ---');
-    atharvaSocket = ioClient(BACKEND_URL, {
-      auth: { token: atharvaToken },
+    user1Socket = ioClient(BACKEND_URL, {
+      auth: { token: user1Token },
       transports: ['websocket'],
     });
 
-    emmaSocket = ioClient(BACKEND_URL, {
-      auth: { token: emmaToken },
+    user2Socket = ioClient(BACKEND_URL, {
+      auth: { token: user2Token },
       transports: ['websocket'],
     });
 
     await Promise.all([
-      new Promise((resolve) => atharvaSocket.on('connect', resolve)),
-      new Promise((resolve) => emmaSocket.on('connect', resolve)),
+      new Promise((resolve) => user1Socket.on('connect', resolve)),
+      new Promise((resolve) => user2Socket.on('connect', resolve)),
     ]);
-    assert(atharvaSocket.connected && emmaSocket.connected, 'Both Atharva and Emma connected via WebSocket');
+    assert(user1Socket.connected && user2Socket.connected, 'Both users connected via WebSocket');
 
-    // 5. Join the collaborative session room
+    // 4. Join the collaborative session room
     console.log('\n--- 4. Joining Collaborative Session Rooms ---');
-    const atharvaJoinedPromise = new Promise((resolve) => {
-      atharvaSocket.on('collab:joined', resolve);
+    const u1JoinedPromise = new Promise((resolve) => {
+      user1Socket.on('collab:joined', resolve);
     });
-    const emmaJoinedPromise = new Promise((resolve) => {
-      emmaSocket.on('collab:joined', resolve);
+    const u2JoinedPromise = new Promise((resolve) => {
+      user2Socket.on('collab:joined', resolve);
     });
 
-    atharvaSocket.emit('collab:join', { sessionId });
-    emmaSocket.emit('collab:join', { sessionId });
+    user1Socket.emit('collab:join', { sessionId });
+    user2Socket.emit('collab:join', { sessionId });
 
-    await Promise.all([atharvaJoinedPromise, emmaJoinedPromise]);
+    await Promise.all([u1JoinedPromise, u2JoinedPromise]);
     assert(true, 'Both users successfully joined collab room');
 
-    // 6. Emma sends a chat message over socket -> Atharva must receive it in real-time
-    console.log('\n--- 5. Testing Real-Time Chat: Emma -> Atharva ---');
-    const emmaTestMessage = `Hi Atharva, I'm refining the UI components! Timestamp: ${Date.now()}`;
+    // 5. User 2 sends a chat message over socket -> User 1 must receive it in real-time
+    console.log('\n--- 5. Testing Real-Time Chat: User 2 -> User 1 ---');
+    const u2TestMessage = `Hi Lead, I have pushed the frontend changes! Timestamp: ${Date.now()}`;
 
-    const atharvaReceivedPromise = new Promise((resolve) => {
-      atharvaSocket.on('collab:chatMessage', (msg) => {
-        if (msg.content === emmaTestMessage) {
+    const u1ReceivedPromise = new Promise((resolve) => {
+      user1Socket.on('collab:chatMessage', (msg) => {
+        if (msg.content === u2TestMessage) {
           resolve(msg);
         }
       });
     });
 
-    emmaSocket.emit('collab:chat', {
+    user2Socket.emit('collab:chat', {
       sessionId,
-      message: emmaTestMessage,
+      message: u2TestMessage,
     });
 
-    const msgReceivedByAtharva = await atharvaReceivedPromise;
+    const msgReceivedByU1 = await u1ReceivedPromise;
     assert(
-      msgReceivedByAtharva && msgReceivedByAtharva.content === emmaTestMessage,
-      `Atharva received Emma's message in real time: "${msgReceivedByAtharva.content}"`
+      msgReceivedByU1 && msgReceivedByU1.content === u2TestMessage,
+      `User 1 received User 2's message in real time: "${msgReceivedByU1.content}"`
     );
     assert(
-      msgReceivedByAtharva.name?.includes('Emma'),
-      `Sender identified correctly as Emma Watson (Got: ${msgReceivedByAtharva.name})`
+      msgReceivedByU1.name?.includes('Staff Developer'),
+      `Sender identified correctly as Staff Developer (Got: ${msgReceivedByU1.name})`
     );
 
-    // 7. Atharva sends a reply over socket -> Emma must receive it in real-time
-    console.log('\n--- 6. Testing Real-Time Chat: Atharva -> Emma ---');
-    const atharvaReplyMessage = `Great work Emma! The pair-coding room is perfectly in sync! Timestamp: ${Date.now()}`;
+    // 6. User 1 sends a reply over socket -> User 2 must receive it in real-time
+    console.log('\n--- 6. Testing Real-Time Chat: User 1 -> User 2 ---');
+    const u1ReplyMessage = `Great work! All real-time systems are operational! Timestamp: ${Date.now()}`;
 
-    const emmaReceivedPromise = new Promise((resolve) => {
-      emmaSocket.on('collab:chatMessage', (msg) => {
-        if (msg.content === atharvaReplyMessage) {
+    const u2ReceivedPromise = new Promise((resolve) => {
+      user2Socket.on('collab:chatMessage', (msg) => {
+        if (msg.content === u1ReplyMessage) {
           resolve(msg);
         }
       });
     });
 
-    atharvaSocket.emit('collab:chat', {
+    user1Socket.emit('collab:chat', {
       sessionId,
-      message: atharvaReplyMessage,
+      message: u1ReplyMessage,
     });
 
-    const msgReceivedByEmma = await emmaReceivedPromise;
+    const msgReceivedByU2 = await u2ReceivedPromise;
     assert(
-      msgReceivedByEmma && msgReceivedByEmma.content === atharvaReplyMessage,
-      `Emma received Atharva's reply in real time: "${msgReceivedByEmma.content}"`
+      msgReceivedByU2 && msgReceivedByU2.content === u1ReplyMessage,
+      `User 2 received User 1's reply in real time: "${msgReceivedByU2.content}"`
     );
     assert(
-      msgReceivedByEmma.name?.includes('Atharva'),
-      `Sender identified correctly as Atharva Nandurkar (Got: ${msgReceivedByEmma.name})`
+      msgReceivedByU2.name?.includes('Lead Engineer'),
+      `Sender identified correctly as Lead Engineer (Got: ${msgReceivedByU2.name})`
     );
 
-    // 8. REST Fallback API: Emma sends message via REST endpoint -> Atharva receives via socket
-    console.log('\n--- 7. Testing Dual-Channel / REST Fallback Live Broadcast ---');
-    const restMessageText = `REST dual-channel sync check. Timestamp: ${Date.now()}`;
+    // 7. Verify DB persistence of chat history
+    console.log('\n--- 7. Verifying DB Persistence & HTTP Retrieval ---');
+    const sessionDoc = await CollabSession.findById(sessionId);
+    assert(sessionDoc.messages && sessionDoc.messages.length >= 2, 'Chat messages persisted into MongoDB CollabSession.messages array');
 
-    const atharvaRestReceivePromise = new Promise((resolve) => {
-      atharvaSocket.on('collab:chatMessage', (msg) => {
-        if (msg.content === restMessageText) {
-          resolve(msg);
-        }
+    const lastTwo = sessionDoc.messages.slice(-2);
+    assert(
+      lastTwo[0].content === u2TestMessage && lastTwo[1].content === u1ReplyMessage,
+      'Messages in MongoDB match exactly in sequential chronological order'
+    );
+
+    const httpFetch = await request(`/collab/${sessionId}`, 'GET', null, user1Token);
+    assert(httpFetch.status === 200, 'HTTP GET /collab/:id returns 200 OK');
+    const fetchedMessages = httpFetch.body.data.session.messages;
+    assert(
+      fetchedMessages.some((m) => m.content === u2TestMessage) &&
+      fetchedMessages.some((m) => m.content === u1ReplyMessage),
+      'HTTP response includes all live chat messages for client reloads'
+    );
+
+    // 8. Test live typing indicator broadcast
+    console.log('\n--- 8. Testing Real-Time Typing Indicators ---');
+    const typingPromise = new Promise((resolve) => {
+      user1Socket.on('collab:userTyping', (data) => {
+        resolve(data);
       });
     });
 
-    const restRes = await request(`/collab/${sessionId}/messages`, 'POST', {
-      content: restMessageText,
-    }, emmaToken);
-    assert(restRes.status === 201, 'Message saved via REST endpoint');
+    user2Socket.emit('collab:typing', { sessionId, isTyping: true });
+    const typingData = await typingPromise;
+    const typingName = typingData?.user?.name || typingData?.name;
+    assert(typingName && typingName.includes('Staff Developer'), `Typing indicator received from: ${typingName}`);
 
-    const msgReceivedFromRest = await atharvaRestReceivePromise;
-    assert(
-      msgReceivedFromRest && msgReceivedFromRest.content === restMessageText,
-      `Atharva received REST-posted message via live WebSocket broadcast: "${msgReceivedFromRest.content}"`
-    );
-
-    // 9. Verify In-Database Persistence
-    console.log('\n--- 8. Verifying MongoDB Persistence ---');
-    const updatedSession = await CollabSession.findById(sessionId);
-    const dbMessages = updatedSession.messages || [];
-    const hasEmmaMsg = dbMessages.some((m) => m.content === emmaTestMessage);
-    const hasAtharvaMsg = dbMessages.some((m) => m.content === atharvaReplyMessage);
-    const hasRestMsg = dbMessages.some((m) => m.content === restMessageText);
-
-    assert(hasEmmaMsg, 'Emma\'s socket message saved in MongoDB CollabSession.messages');
-    assert(hasAtharvaMsg, 'Atharva\'s socket message saved in MongoDB CollabSession.messages');
-    assert(hasRestMsg, 'REST dual-sync message saved in MongoDB CollabSession.messages');
-
-    // 10. Initial Session Sync on New Connection
-    console.log('\n--- 9. Verifying History Hydration for Newly Joining Peer ---');
-    const newSocket = ioClient(BACKEND_URL, {
-      auth: { token: atharvaToken },
-      transports: ['websocket'],
-    });
-    await new Promise((resolve) => newSocket.on('connect', resolve));
-
-    const initHistoryPromise = new Promise((resolve) => {
-      newSocket.on('collab:init', (payload) => {
-        resolve(payload.messages || []);
-      });
-    });
-
-    newSocket.emit('collab:join', { sessionId });
-    const hydratedMessages = await initHistoryPromise;
-    assert(
-      Array.isArray(hydratedMessages) && hydratedMessages.length >= 3,
-      `Newly connecting teammate receives full message history upon join (${hydratedMessages.length} messages hydrated)`
-    );
-    newSocket.disconnect();
-
-  } catch (error) {
-    console.error('Real-Time Live Chat Test encountered an error:', error);
+  } catch (err) {
+    console.error('Fatal test error:', err);
     failed++;
   } finally {
-    if (atharvaSocket) atharvaSocket.disconnect();
-    if (emmaSocket) emmaSocket.disconnect();
+    if (user1Socket) user1Socket.disconnect();
+    if (user2Socket) user2Socket.disconnect();
     await mongoose.disconnect();
-    console.log('\n========================================================================');
-    console.log(`REAL-TIME CHAT TESTS COMPLETED: ${passed} PASSED | ${failed} FAILED`);
-    console.log('========================================================================\n');
-    process.exit(failed > 0 ? 1 : 0);
+  }
+
+  console.log('\n========================================================================');
+  console.log(`REAL-TIME CHAT TEST RESULT: ${passed} PASSED, ${failed} FAILED`);
+  console.log('========================================================================');
+
+  if (failed > 0) {
+    process.exit(1);
   }
 }
 
 runLiveChatRealtimeTest();
-

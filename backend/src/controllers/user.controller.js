@@ -115,23 +115,19 @@ exports.deleteAccount = catchAsync(async (req, res) => {
   const CollabSession = require('../models/CollabSession');
   const Notification = require('../models/Notification');
   const { clearRefreshCookie } = require('../utils/jwt');
-  const { isTestBotEmail } = require('../utils/testBots');
 
-  // Governance Rule: If user owns projects with other active human members, require ownership transfer first
+  // Governance Rule: If user owns projects with other active members, require ownership transfer first
   const ownedProjects = await Project.find({ owner: userId }).populate('members.user', 'email');
   for (const proj of ownedProjects) {
-    const humanMembers = proj.members.filter((m) => {
+    const activeMembers = proj.members.filter((m) => {
       if (!m.user) return false;
       const memberUserId = (m.user._id || m.user).toString();
-      const memberEmail = m.user.email;
-      if (memberUserId === userId.toString()) return false;
-      if (isTestBotEmail(memberEmail)) return false;
-      return true;
+      return memberUserId !== userId.toString();
     });
 
-    if (humanMembers.length > 0) {
+    if (activeMembers.length > 0) {
       throw new AppError(
-        `Governance Restriction: You are currently the Project Owner of "${proj.name}" which has ${humanMembers.length} active team members. Please transfer project ownership to another member before deleting your account.`,
+        `Governance Restriction: You are currently the Project Owner of "${proj.name}" which has ${activeMembers.length} active team members. Please transfer project ownership to another member before deleting your account.`,
         400
       );
     }

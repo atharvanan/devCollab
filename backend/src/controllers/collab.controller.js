@@ -6,7 +6,6 @@ const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 const { getIO } = require('../socket');
 const { canRoleAccessDomain, ROLE_DISPLAY_NAMES, recordSecurityViolation } = require('../utils/roleCompliance');
-const { ensureProjectAccess } = require('../utils/testBots');
 
 /**
  * Get all collab sessions for a project.
@@ -16,7 +15,7 @@ exports.getProjectSessions = catchAsync(async (req, res) => {
   const { projectId } = req.params;
   const project = await Project.findById(projectId);
   if (!project) throw new AppError('Project not found', 404);
-  const hasAccess = await ensureProjectAccess(project, req.user);
+  const hasAccess = project.hasAccess(req.user);
   if (!hasAccess) throw new AppError('Access denied', 403);
 
   let sessions = await CollabSession.find({ project: projectId })
@@ -75,7 +74,7 @@ exports.getSession = catchAsync(async (req, res) => {
 
   const project = await Project.findById(session.project);
   if (!project) throw new AppError('Project not found', 404);
-  const hasAccess = await ensureProjectAccess(project, req.user);
+  const hasAccess = project.hasAccess(req.user);
   if (!hasAccess) {
     throw new AppError('Access denied to this project session', 403);
   }
@@ -92,7 +91,7 @@ exports.createSession = catchAsync(async (req, res) => {
 
   const project = await Project.findById(projectId);
   if (!project) throw new AppError('Project not found', 404);
-  const hasAccess = await ensureProjectAccess(project, req.user);
+  const hasAccess = project.hasAccess(req.user);
   if (!hasAccess) throw new AppError('Access denied', 403);
 
   const userRole = project.getUserRole(req.user._id);

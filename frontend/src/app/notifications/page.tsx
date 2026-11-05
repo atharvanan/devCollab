@@ -127,7 +127,7 @@ export default function NotificationsPage() {
           })}
 
           {notifications.length === 0 && (
-            <div className="border border-dashed border-border rounded-xl p-12 text-center space-y-3">
+            <div className="border border-dashed border-border rounded-xs p-12 text-center space-y-3">
               <Inbox className="w-10 h-10 text-muted-foreground mx-auto" />
               <p className="text-base font-medium">All caught up!</p>
               <p className="text-xs text-muted-foreground max-w-sm mx-auto">

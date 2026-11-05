@@ -14,8 +14,6 @@ const catchAsync = require('../utils/catchAsync');
 
 const generateOTP = () => crypto.randomInt(100000, 1000000).toString();
 
-const { isTestBotEmail } = require('../utils/testBots');
-
 exports.register = catchAsync(async (req, res) => {
   const { name, email, password } = req.body;
 
@@ -96,8 +94,7 @@ exports.verifyOTP = catchAsync(async (req, res) => {
     throw new AppError('Too many failed attempts. Account temporarily locked for 15 minutes.', 429);
   }
 
-  const isBot = process.env.NODE_ENV !== 'production' && isTestBotEmail(user.email);
-  const isValidOtp = (user.otp && user.otp === otp) || (isBot && (otp === '123456' || otp === user.otp));
+  const isValidOtp = Boolean(user.otp && user.otp === otp);
 
   if (!isValidOtp) {
     user.otpAttempts = (user.otpAttempts || 0) + 1;
@@ -112,7 +109,7 @@ exports.verifyOTP = catchAsync(async (req, res) => {
     throw new AppError(`Invalid OTP. ${5 - user.otpAttempts} attempts remaining.`, 400);
   }
 
-  if (!isBot && user.otpExpires < Date.now()) throw new AppError('OTP expired. Request a new one.', 400);
+  if (user.otpExpires < Date.now()) throw new AppError('OTP expired. Request a new one.', 400);
 
   user.isVerified = true;
   user.otp = undefined;
@@ -140,22 +137,17 @@ exports.resendOTP = catchAsync(async (req, res) => {
   const user = await User.findOne(query).select('+otp +otpExpires');
   if (!user) throw new AppError('User not found', 404);
 
-  const isBot = isTestBotEmail(user.email);
-  const otp = isBot ? '123456' : generateOTP();
+  const otp = generateOTP();
   user.otp = otp;
   user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
   await user.save();
 
-  if (!isBot) {
-    await sendOTPEmail(user.email, otp, user.name).catch(() => {});
-  }
+  await sendOTPEmail(user.email, otp, user.name).catch(() => {});
   logger.info(`[RESEND OTP] New verification code for ${user.email}: ${otp}`);
 
   res.json({
     success: true,
-    message: isBot
-      ? 'Universal test bot verification code is 123456.'
-      : 'A fresh verification code has been sent to your email.',
+    message: 'A fresh verification code has been sent to your email.',
     data: {
       userId: user._id,
       email: user.email,
@@ -187,26 +179,6 @@ exports.login = catchAsync(async (req, res) => {
 
     setRefreshCookie(res, refreshToken);
     return res.json({ success: true, data: { accessToken, user: user.toPublicJSON() } });
-  }
-
-  // If user is a test bot in a non-production test environment, log in directly
-  if (process.env.NODE_ENV !== 'production' && isTestBotEmail(user.email)) {
-    user.isVerified = true;
-    user.otp = undefined;
-    user.otpExpires = undefined;
-    user.lastSeen = new Date();
-
-    const accessToken = generateAccessToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
-    user.refreshTokens = [...(user.refreshTokens || []).slice(-4), refreshToken];
-    await user.save();
-
-    setRefreshCookie(res, refreshToken);
-    return res.json({
-      success: true,
-      message: 'Test Bot authenticated directly',
-      data: { accessToken, user: user.toPublicJSON() },
-    });
   }
 
   // Automated Jest integration tests bypass flag (for fast test suites)

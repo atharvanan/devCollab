@@ -54,19 +54,19 @@ export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background bg-grid-subtle px-4 py-8 relative">
       <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
-        <ThemeToggle showLabel className="border border-border/70 bg-card/80 backdrop-blur-sm shadow-xs px-3 py-1.5 rounded-lg" />
+        <ThemeToggle showLabel className="border border-border/70 bg-card/80 backdrop-blur-sm shadow-xs px-3 py-1.5 rounded-xs" />
       </div>
 
       <div className="w-full max-w-md space-y-6">
         {/* Header Branding */}
         <div className="text-center space-y-3">
-          <Link href="/" className="inline-block group transition-transform hover:scale-105">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-primary to-indigo-500 flex items-center justify-center mx-auto shadow-md shadow-primary/20">
-              <Code2 className="w-6 h-6 text-white" />
+          <Link href="/" className="inline-block group transition-transform hover:scale-102">
+            <div className="w-11 h-11 rounded-xs bg-primary flex items-center justify-center mx-auto shadow-xs">
+              <Code2 className="w-5 h-5 text-white" />
             </div>
           </Link>
           <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20 mb-2">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-xs text-[11px] font-mono font-semibold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20 mb-2">
               <KeyRound className="w-3.5 h-3.5" />
               <span>Account Recovery</span>
             </div>
@@ -78,7 +78,7 @@ export default function ForgotPasswordPage() {
         </div>
 
         {/* Card Form */}
-        <div className="p-6 sm:p-7 rounded-2xl border border-border/80 bg-card/90 backdrop-blur-md shadow-xl shadow-black/5">
+        <div className="p-6 sm:p-7 rounded-xs border border-border bg-card shadow-sm">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1.5">
               <label htmlFor="reset-email" className="text-sm font-medium text-foreground block">

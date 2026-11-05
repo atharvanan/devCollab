@@ -197,7 +197,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Profile Card */}
-        <div className="p-4 sm:p-6 rounded-xl border border-border bg-card flex flex-col sm:flex-row items-center sm:items-start gap-4">
+        <div className="p-4 sm:p-6 rounded-xs border border-border bg-card flex flex-col sm:flex-row items-center sm:items-start gap-4">
           <div className="relative group shrink-0">
             <Avatar src={avatar} name={name || user?.name || 'User'} size={72} />
             <button
@@ -239,7 +239,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Profile Settings Form */}
-        <div className="p-5 sm:p-6 rounded-xl border border-border bg-card space-y-4">
+        <div className="p-5 sm:p-6 rounded-xs border border-border bg-card space-y-4">
           <h2 className="text-base font-semibold text-foreground border-b border-border pb-3">
             Public Profile
           </h2>
@@ -261,7 +261,7 @@ export default function SettingsPage() {
               rows={3}
               maxLength={200}
               placeholder="Write a brief developer bio or team role..."
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="w-full rounded-xs border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             />
             <p className="text-[11px] text-muted-foreground text-right mt-1">
               {bio.length}/200 characters
@@ -287,7 +287,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Security & Password Reset Section */}
-        <div className="p-5 sm:p-6 rounded-xl border border-border bg-card space-y-5">
+        <div className="p-5 sm:p-6 rounded-xs border border-border bg-card space-y-5">
           <div className="flex items-center justify-between border-b border-border pb-3">
             <div>
               <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
@@ -380,7 +380,7 @@ export default function SettingsPage() {
           </form>
 
           {/* Forgot Password Section / Reset Code */}
-          <div className="pt-4 border-t border-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-muted/30 p-4 rounded-xl">
+          <div className="pt-4 border-t border-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-muted/30 p-4 rounded-xs">
             <div>
               <p className="text-sm font-semibold text-foreground">Forgot your existing password?</p>
               <p className="text-xs text-muted-foreground mt-0.5">
@@ -401,7 +401,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Danger Zone: Delete Account */}
-        <div className="border border-destructive/30 bg-destructive/5 rounded-2xl p-6 space-y-4">
+        <div className="border border-destructive/30 bg-destructive/5 rounded-xs p-6 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-1">
               <h3 className="font-bold text-base text-destructive flex items-center gap-2">
@@ -434,29 +434,29 @@ export default function SettingsPage() {
             onClick={() => setDeleteModalOpen(false)}
           >
             <div
-              className="bg-card border border-destructive/40 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl"
+              className="bg-card border border-destructive/40 rounded-xs w-full max-w-md p-6 space-y-4 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
-                    <Trash2 className="w-5 h-5" />
+                  <div className="w-9 h-9 rounded-xs bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
+                    <Trash2 className="w-4.5 h-4.5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-lg text-foreground">Confirm Account Deletion</h3>
+                    <h3 className="font-bold text-base text-foreground">Confirm Account Deletion</h3>
                     <p className="text-xs text-muted-foreground">Irreversible action</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setDeleteModalOpen(false)}
-                  className="p-1 rounded-lg text-muted-foreground hover:text-foreground"
+                  className="p-1 rounded-xs text-muted-foreground hover:text-foreground"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive leading-relaxed">
+              <div className="p-3.5 rounded-xs bg-destructive/10 border border-destructive/20 text-xs text-destructive leading-relaxed">
                 <p className="font-semibold mb-1">Warning: Permanent Data Removal</p>
                 <p>
                   All your personal profile data, notifications, and memberships will be deleted.

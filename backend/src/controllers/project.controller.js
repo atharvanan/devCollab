@@ -6,13 +6,6 @@ const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 const { ROLE_DISPLAY_NAMES } = require('../utils/roleCompliance');
 const { logGovernanceAudit } = require('../utils/auditLogger');
-const {
-  TEST_BOTS,
-  isTestBotEmail,
-  ensureBotUser,
-  autoSeedBotsToProject,
-  ensureProjectAccess,
-} = require('../utils/testBots');
 
 exports.createProject = catchAsync(async (req, res) => {
   // Authorization Rule: Only Platform Administrators or users explicitly authorized
@@ -49,9 +42,6 @@ exports.createProject = catchAsync(async (req, res) => {
     members: [{ user: req.user._id, role: 'project_manager', joinedAt: new Date() }],
   });
 
-  // Automatically attach all test bot teammates so every role is ready to collaborate in development
-  await autoSeedBotsToProject(project).catch(() => {});
-
   // Record immutable governance audit log
   await logGovernanceAudit({
     project: project._id,
@@ -72,13 +62,11 @@ exports.createProject = catchAsync(async (req, res) => {
 
 exports.getProjects = catchAsync(async (req, res) => {
   const { search, page = 1, limit = 10 } = req.query;
-  const isBot = isTestBotEmail(req.user.email);
-
   // Find all projects where user has assigned tasks
   const assignedTaskProjectIds = await Task.distinct('project', { assignees: req.user._id }).catch(() => []);
 
-  const query = isBot
-    ? {} // Test bots can view all projects in workspace for multi-user collaboration testing
+  const query = req.user.role === 'admin'
+    ? {}
     : {
         $or: [
           { owner: req.user._id },
@@ -122,7 +110,7 @@ exports.getProject = catchAsync(async (req, res) => {
     .populate('members.user', 'name email avatar');
   if (!project) throw new AppError('Project not found', 404);
 
-  const hasAccess = await ensureProjectAccess(project, req.user);
+  const hasAccess = project.hasAccess(req.user);
   if (!hasAccess) {
     throw new AppError('Access denied', 403);
   }
@@ -671,7 +659,7 @@ exports.getGovernanceSummary = catchAsync(async (req, res) => {
     .populate('members.user', 'name email avatar');
   if (!project) throw new AppError('Project not found', 404);
 
-  const hasAccess = await ensureProjectAccess(project, req.user);
+  const hasAccess = project.hasAccess(req.user);
   if (!hasAccess) throw new AppError('Access denied', 403);
 
   const isOwner = project.isOwner(req.user._id) || req.user.role === 'admin';
@@ -715,8 +703,8 @@ exports.getGovernanceSummary = catchAsync(async (req, res) => {
 exports.getSecurityAudits = catchAsync(async (req, res) => {
   const project = await Project.findById(req.params.id);
   if (!project) throw new AppError('Project not found', 404);
-  if (!project.isProjectManager(req.user._id) && project.getUserRole(req.user._id) !== 'security_engineer') {
-    throw new AppError('Access denied: Only Project Managers and Security Engineers can view compliance logs', 403);
+  if (!project.isProjectManager(req.user._id) && project.getUserRole(req.user._id) !== 'security_engineer' && req.user.role !== 'admin') {
+    throw new AppError('Access denied: Only Project Managers, Security Engineers, and Platform Admins can view compliance logs', 403);
   }
 
   const audits = await SecurityAudit.find({ project: project._id })
@@ -734,8 +722,8 @@ exports.resolveSecurityAudit = catchAsync(async (req, res) => {
   const { id: projectId, auditId } = req.params;
   const project = await Project.findById(projectId);
   if (!project) throw new AppError('Project not found', 404);
-  if (!project.isProjectManager(req.user._id)) {
-    throw new AppError('Only Project Managers can acknowledge security violations', 403);
+  if (!project.isProjectManager(req.user._id) && req.user.role !== 'admin') {
+    throw new AppError('Only Project Managers or Platform Admins can acknowledge security violations', 403);
   }
 
   const audit = await SecurityAudit.findOne({ _id: auditId, project: projectId });
@@ -748,39 +736,4 @@ exports.resolveSecurityAudit = catchAsync(async (req, res) => {
   await audit.populate('resolvedBy', 'name email');
 
   res.json({ success: true, message: 'Security violation marked as resolved', data: { audit } });
-});
-
-exports.seedProjectBots = catchAsync(async (req, res) => {
-  const project = await Project.findById(req.params.id);
-  if (!project) throw new AppError('Project not found', 404);
-  if (!project.isProjectManager(req.user._id)) {
-    throw new AppError('Only the project owner or manager can add test bots', 403);
-  }
-
-  await autoSeedBotsToProject(project);
-  await project.populate('owner', 'name email avatar');
-  await project.populate('members.user', 'name email avatar');
-
-  res.json({
-    success: true,
-    message: 'Test bots successfully added to this project!',
-    data: { project, bots: TEST_BOTS },
-  });
-});
-
-exports.getBotCredentials = catchAsync(async (req, res) => {
-  if (process.env.NODE_ENV === 'production') {
-    throw new AppError('Bot credentials endpoint is disabled in production environments', 403);
-  }
-  res.json({
-    success: true,
-    data: {
-      bots: TEST_BOTS.map((b) => ({
-        name: b.name,
-        email: b.email,
-        password: b.password,
-        role: b.role,
-      })),
-    },
-  });
 });

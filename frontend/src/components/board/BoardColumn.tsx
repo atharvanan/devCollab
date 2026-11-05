@@ -48,15 +48,15 @@ export function BoardColumn({ id, title, tasks, onAddTask, isPM, currentUserId }
       <div
         ref={setNodeRef}
         className={cn(
-          'rounded-xl p-2.5 min-h-[260px] max-h-[calc(100vh-330px)] overflow-y-auto space-y-2.5 transition-colors border border-border/60 scrollbar-none',
-          isOver ? 'bg-primary/5 ring-2 ring-primary/30 border-primary/30' : 'bg-secondary/20'
+          'rounded-xs p-2.5 min-h-[260px] max-h-[calc(100vh-330px)] overflow-y-auto space-y-2.5 transition-colors border border-border/60 scrollbar-none',
+          isOver ? 'bg-primary/5 ring-1 ring-primary/30 border-primary/30' : 'bg-secondary/20'
         )}
       >
         {tasks.map((task) => (
           <TaskCard key={task._id} task={task} isPM={isPM} currentUserId={currentUserId} />
         ))}
         {tasks.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed border-border/40 rounded-lg">
+          <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed border-border/40 rounded-xs">
             <p className="text-xs text-muted-foreground">No tasks in {title.toLowerCase()}</p>
           </div>
         )}

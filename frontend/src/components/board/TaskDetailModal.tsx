@@ -153,14 +153,14 @@ export function TaskDetailModal({ task, isPM, currentUserId, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="bg-card border border-border rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
+        className="bg-card border border-border rounded-xs w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Badges & Close Button */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-border bg-muted/20">
           <div className="flex flex-wrap items-center gap-2">
             {/* Stage / Column Badge */}
-            <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-secondary text-secondary-foreground border border-border">
+            <span className="px-2.5 py-0.5 rounded-xs text-xs font-semibold bg-secondary text-secondary-foreground border border-border">
               {COLUMN_LABELS[task.column] || task.column}
             </span>
 
@@ -211,7 +211,7 @@ export function TaskDetailModal({ task, isPM, currentUserId, onClose }: Props) {
           </div>
 
           {/* Full Uncut Description Section */}
-          <div className="p-4 rounded-xl border border-border/80 bg-muted/15 space-y-2">
+          <div className="p-4 rounded-xs border border-border/80 bg-muted/15 space-y-2">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
               <FileText className="w-3.5 h-3.5" /> Ticket Details & Description
             </h3>
@@ -225,7 +225,7 @@ export function TaskDetailModal({ task, isPM, currentUserId, onClose }: Props) {
           {/* People & Dates Metadata Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             {/* Assigned To */}
-            <div className="p-3.5 rounded-xl border border-border bg-card space-y-2">
+            <div className="p-3.5 rounded-xs border border-border bg-card space-y-2">
               <span className="font-semibold text-muted-foreground uppercase tracking-wider block text-[11px]">
                 Assigned Developer
               </span>
@@ -249,7 +249,7 @@ export function TaskDetailModal({ task, isPM, currentUserId, onClose }: Props) {
             </div>
 
             {/* Created By (Who Assigned) */}
-            <div className="p-3.5 rounded-xl border border-border bg-card space-y-2">
+            <div className="p-3.5 rounded-xs border border-border bg-card space-y-2">
               <span className="font-semibold text-muted-foreground uppercase tracking-wider block text-[11px]">
                 Assigned By (Project Manager)
               </span>
@@ -272,7 +272,7 @@ export function TaskDetailModal({ task, isPM, currentUserId, onClose }: Props) {
 
             {/* Due Date */}
             {task.dueDate && (
-              <div className="p-3 rounded-xl border border-border bg-card flex items-center gap-2.5 text-muted-foreground sm:col-span-2">
+              <div className="p-3 rounded-xs border border-border bg-card flex items-center gap-2.5 text-muted-foreground sm:col-span-2">
                 <Calendar className="w-4 h-4 text-primary shrink-0" />
                 <span>
                   Due Date: <strong className="text-foreground">{formatDate(task.dueDate)}</strong>
@@ -282,7 +282,7 @@ export function TaskDetailModal({ task, isPM, currentUserId, onClose }: Props) {
           </div>
 
           {/* Enterprise SLA Audit & Compliance Panel */}
-          <div className="p-4 rounded-xl border border-border bg-card space-y-3">
+          <div className="p-4 rounded-xs border border-border bg-card space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-primary" /> Enterprise SLA & Compliance Audit

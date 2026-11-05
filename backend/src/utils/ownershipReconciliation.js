@@ -1,7 +1,6 @@
 const Project = require('../models/Project');
 const User = require('../models/User');
 const { logGovernanceAudit } = require('./auditLogger');
-const { isTestBotEmail } = require('./testBots');
 const logger = require('./logger');
 
 /**
@@ -11,7 +10,7 @@ const logger = require('./logger');
  * 1. Preserves valid existing ownership if owner is an active user in the database.
  * 2. If owner is missing, deleted, or invalid:
  *    a. Candidate 1: Existing active Project Manager in project.members.
- *    b. Candidate 2: Highest-tenure active member (earliest joinedAt, excluding test bots).
+ *    b. Candidate 2: Highest-tenure active member (earliest joinedAt).
  *    c. If no suitable candidate exists: Marked as AMBIGUOUS_REQUIRES_ADMIN_APPROVAL.
  * 3. Never blindly reassigns unowned projects to Lead Administrator.
  * 4. Generates an auditable report.
@@ -74,11 +73,7 @@ async function reconcileProjectOwnership(options = {}) {
 
     // 2. Owner is missing or inactive -> Find replacement candidates from existing members
     detail.status = 'ORPHAN_PROJECT';
-    const activeMembers = project.members.filter((m) => {
-      const u = m.user;
-      if (!u) return false;
-      return !isTestBotEmail(u.email);
-    });
+    const activeMembers = project.members.filter((m) => !!m.user);
 
     // Candidate Strategy 1: Existing Project Manager in members
     let proposedOwner = activeMembers.find((m) => m.role === 'project_manager');
@@ -93,7 +88,7 @@ async function reconcileProjectOwnership(options = {}) {
       candidateStrategy = 'HIGHEST_TENURE_MEMBER';
     }
 
-    // Candidate Strategy 3: Check fallback to any member if only bots exist
+    // Candidate Strategy 3: Check fallback to any eligible active member
     if (!proposedOwner && project.members.length > 0) {
       const anyMember = project.members.find((m) => m.user);
       if (anyMember) {

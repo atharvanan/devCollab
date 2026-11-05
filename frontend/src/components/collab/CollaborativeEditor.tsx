@@ -447,7 +447,7 @@ export function CollaborativeEditor({
       />
 
       {/* 2. Main Live Collaborative Code Studio */}
-      <div className="rounded-xl border border-border/80 bg-[#141724] text-[#e2e8f0] shadow-xl overflow-hidden">
+      <div className="rounded-xs border border-border/80 bg-[#141724] text-[#e2e8f0] shadow-md overflow-hidden">
         {/* Studio Control Toolbar */}
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-[#0d101d] border-b border-[#212638] text-xs">
           {/* Left: Language & Status */}
@@ -463,7 +463,7 @@ export function CollaborativeEditor({
                 setLanguage(e.target.value);
                 setHasUnsaved(true);
               }}
-              className="bg-[#1e2337] text-white border border-[#2b324d] rounded-md px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+              className="bg-[#1e2337] text-white border border-[#2b324d] rounded-xs px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
             >
               {SUPPORTED_LANGUAGES.map((l) => (
                 <option key={l.value} value={l.value}>
@@ -474,7 +474,7 @@ export function CollaborativeEditor({
 
             {/* Active typing indicator */}
             {typingUser && (
-              <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-full border border-sky-500/20 animate-pulse">
+              <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-xs border border-sky-500/20 animate-pulse font-mono">
                 <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
                 {typingUser.name} is typing...
               </span>
@@ -509,7 +509,7 @@ export function CollaborativeEditor({
             <button
               onClick={() => setShowChat((v) => !v)}
               className={cn(
-                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-colors shadow-xs',
+                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xs border text-xs font-medium transition-colors shadow-2xs',
                 showChat
                   ? 'bg-sky-600 text-white border-sky-500'
                   : 'bg-[#1e2337] text-[#94a3b8] border-[#2b324d] hover:text-white'
@@ -519,7 +519,7 @@ export function CollaborativeEditor({
               <MessageSquare className="w-3.5 h-3.5" />
               <span>Team Chat</span>
               {messages.length > 0 && (
-                <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] bg-sky-950/80 text-sky-200 font-bold border border-sky-400/30">
+                <span className="ml-0.5 px-1.5 py-0.2 rounded-xs text-[10px] bg-sky-950/80 text-sky-200 font-mono font-bold border border-sky-400/30">
                   {messages.length}
                 </span>
               )}
@@ -527,7 +527,7 @@ export function CollaborativeEditor({
 
             <button
               onClick={() => setExportModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition-colors shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition-colors shadow-2xs"
               title="Convert this code into a project Code Review"
             >
               <GitPullRequest className="w-3.5 h-3.5" />
@@ -638,7 +638,7 @@ export function CollaborativeEditor({
                       <div
                         key={idx}
                         className={cn(
-                          'p-2.5 rounded-lg text-xs space-y-1',
+                          'p-2.5 rounded-xs text-xs space-y-1',
                           isMe
                             ? 'bg-sky-500/10 border border-sky-500/20 ml-2'
                             : 'bg-[#161a2c] border border-[#232840] mr-2'
@@ -703,10 +703,10 @@ export function CollaborativeEditor({
 
       {/* 3. Export to Code Review Modal */}
       {exportModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-xs border border-border bg-card p-6 shadow-2xl space-y-4">
             <div className="space-y-1">
-              <h3 className="text-lg font-bold text-foreground">Export to Code Review</h3>
+              <h3 className="text-base font-bold text-foreground">Export to Code Review</h3>
               <p className="text-xs text-muted-foreground">
                 Convert this live collaborative code into an official project review. All {contributors.length} collaborators will be credited as co-contributors.
               </p>
@@ -718,11 +718,11 @@ export function CollaborativeEditor({
                 type="text"
                 value={exportTitle}
                 onChange={(e) => setExportTitle(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                className="w-full rounded-xs border border-border bg-background px-3 py-2 text-sm"
               />
             </div>
 
-            <div className="p-3 rounded-lg bg-accent/40 border border-border text-xs text-muted-foreground space-y-1">
+            <div className="p-3 rounded-xs bg-accent/40 border border-border text-xs text-muted-foreground space-y-1">
               <p className="font-semibold text-foreground">Co-Contributors:</p>
               <div className="flex flex-wrap gap-1.5 pt-1">
                 {contributors.map((c, idx) => (

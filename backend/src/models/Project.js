@@ -105,4 +105,12 @@ projectSchema.methods.isProjectManager = function (userId) {
   return role === 'project_manager' || role === 'admin';
 };
 
+projectSchema.methods.hasAccess = function (user) {
+  if (!user) return false;
+  if (user.role === 'admin') return true;
+  if (this.visibility === 'public') return true;
+  const uid = (user._id || user).toString();
+  return this.isOwner(uid) || this.isMember(uid);
+};
+
 module.exports = mongoose.model('Project', projectSchema);

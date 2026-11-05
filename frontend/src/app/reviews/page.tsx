@@ -31,9 +31,9 @@ export default function ReviewsOverviewPage() {
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="border border-border rounded-xl p-5 space-y-3 animate-pulse">
-                <div className="h-5 bg-muted rounded w-2/3" />
-                <div className="h-4 bg-muted/60 rounded w-1/3" />
+              <div key={i} className="border border-border rounded-xs p-5 space-y-3 animate-pulse">
+                <div className="h-5 bg-muted rounded-xs w-2/3" />
+                <div className="h-4 bg-muted/60 rounded-xs w-1/3" />
               </div>
             ))}
           </div>
@@ -44,7 +44,7 @@ export default function ReviewsOverviewPage() {
                 <Card className="p-5 hover:border-primary/50 transition-all h-full flex flex-col justify-between group-hover:shadow-sm">
                   <div>
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 rounded-xs bg-primary/10 flex items-center justify-center shrink-0">
                         <GitPullRequest className="w-4 h-4 text-primary" />
                       </div>
                       <p className="text-base font-semibold group-hover:text-primary transition-colors truncate">
@@ -66,7 +66,7 @@ export default function ReviewsOverviewPage() {
             ))}
 
             {(!projectsData || projectsData.length === 0) && (
-              <div className="col-span-full border border-dashed border-border rounded-xl p-12 text-center space-y-3">
+              <div className="col-span-full border border-dashed border-border rounded-xs p-12 text-center space-y-3">
                 <FolderKanban className="w-10 h-10 text-muted-foreground mx-auto" />
                 <p className="text-base font-medium">No projects available</p>
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto">

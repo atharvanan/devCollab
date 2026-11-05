@@ -6,7 +6,7 @@ export const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDi
     <div
       ref={ref}
       className={cn(
-        'rounded-xl border border-border/70 bg-card text-card-foreground shadow-sm transition-all duration-150',
+        'rounded-xs border border-border/80 bg-card text-card-foreground shadow-2xs transition-all duration-150',
         className
       )}
       {...props}
@@ -22,7 +22,7 @@ CardHeader.displayName = 'CardHeader';
 
 export const CardTitle = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLHeadingElement>>(
   ({ className, ...props }, ref) => (
-    <h3 ref={ref} className={cn('text-lg font-semibold leading-none tracking-tight text-foreground', className)} {...props} />
+    <h3 ref={ref} className={cn('text-base font-semibold leading-none tracking-tight text-foreground', className)} {...props} />
   )
 );
 CardTitle.displayName = 'CardTitle';
@@ -59,7 +59,7 @@ export function Badge({ className, variant = 'default', dot = false, children, .
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold select-none',
+        'inline-flex items-center gap-1.5 rounded-xs px-2 py-0.5 text-[11px] font-mono font-medium tracking-tight select-none border',
         variantStyles[variant] || variantStyles.default,
         className
       )}
@@ -78,14 +78,14 @@ export function Avatar({ src, name, size = 32 }: { src?: string; name: string; s
         src={src}
         alt={name}
         style={{ width: size, height: size }}
-        className="rounded-full object-cover border border-border/60 shrink-0"
+        className="rounded-xs object-cover border border-border/70 shrink-0"
       />
     );
   }
   return (
     <div
-      style={{ width: size, height: size, fontSize: Math.max(11, size * 0.4) }}
-      className="rounded-full bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-semibold border border-primary/30 flex items-center justify-center shrink-0 select-none shadow-xs"
+      style={{ width: size, height: size, fontSize: Math.max(10, size * 0.4) }}
+      className="rounded-xs bg-muted text-foreground font-semibold border border-border flex items-center justify-center shrink-0 select-none shadow-2xs"
     >
       {name?.[0]?.toUpperCase() || '?'}
     </div>

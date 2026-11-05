@@ -18,7 +18,6 @@ import {
   PauseCircle,
   PlayCircle,
   CheckCircle2,
-  Bot,
   Copy,
   Check,
   Archive,
@@ -73,14 +72,10 @@ export default function ProjectDetailPage() {
   const [transferReason, setTransferReason] = useState('');
   const [transferring, setTransferring] = useState(false);
 
-  // Project lifecycle and bot testing states
+  // Project lifecycle states
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [botModalOpen, setBotModalOpen] = useState(false);
-  const [seededBotsList, setSeededBotsList] = useState<any[]>([]);
-  const [seedingBots, setSeedingBots] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [deletingProject, setDeletingProject] = useState(false);
-  const [copiedBot, setCopiedBot] = useState<string | null>(null);
 
   useJoinRoom(`project:${id}`);
 
@@ -313,30 +308,6 @@ export default function ProjectDetailPage() {
       toast.error(err.response?.data?.message || 'Failed to delete project');
       setDeletingProject(false);
     }
-  };
-
-  // Handle generating test bot team
-  const handleSeedBots = async () => {
-    try {
-      setSeedingBots(true);
-      const res = await apiClient.post(`/projects/${id}/seed-bots`);
-      setSeededBotsList(res.data.data.bots || []);
-      setBotModalOpen(true);
-      toast.success('Test bot teammates added to this project!');
-      refetchProject();
-      refetchGovernance();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to generate test bots');
-    } finally {
-      setSeedingBots(false);
-    }
-  };
-
-  const copyBotCredentials = (email: string, pass: string) => {
-    navigator.clipboard.writeText(`${email}\n${pass}`);
-    setCopiedBot(email);
-    toast.success(`Credentials copied for ${email}!`);
-    setTimeout(() => setCopiedBot(null), 2000);
   };
 
   if (isLoading) {
@@ -636,14 +607,6 @@ export default function ProjectDetailPage() {
               </div>
               {isPM && (
                 <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    loading={seedingBots}
-                    onClick={handleSeedBots}
-                  >
-                    <Bot className="w-4 h-4 mr-1.5 text-primary" /> Spawn Test Bots
-                  </Button>
                   <Button size="sm" onClick={() => setInviteModalOpen(true)}>
                     <UserPlus className="w-4 h-4 mr-1.5" /> Invite Member
                   </Button>
@@ -1084,105 +1047,6 @@ export default function ProjectDetailPage() {
           </div>
         )}
 
-        {/* Test Bot Credentials Cheat-Sheet Modal */}
-        {botModalOpen && (
-          <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4"
-            onClick={() => setBotModalOpen(false)}
-          >
-            <div
-              className="bg-card border border-border rounded-2xl w-full max-w-xl p-6 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                    <Bot className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-lg text-foreground">Test Bot Teammates Ready</h3>
-                    <p className="text-xs text-muted-foreground">
-                      Spawned and assigned to this project with role bindings.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setBotModalOpen(false)}
-                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-muted/40 border border-border/80 text-xs text-muted-foreground leading-relaxed space-y-1">
-                <p className="text-foreground font-semibold">How to test cross-role collaboration:</p>
-                <p>
-                  1. Open a new Incognito or separate browser window.<br />
-                  2. Sign in with any of the bot credentials below.<br />
-                  3. Open this project to test task completion, resolution submissions, code reviews, and role permissions!
-                </p>
-              </div>
-
-              <div className="space-y-2.5">
-                {(seededBotsList.length > 0 ? seededBotsList : [
-                  { name: 'Alex Chen (Frontend)', email: 'alex.frontend@devcollab.com', role: 'frontend_developer', password: 'DevCollab123!' },
-                  { name: 'Sarah Connor (Backend)', email: 'sarah.backend@devcollab.com', role: 'backend_developer', password: 'DevCollab123!' },
-                  { name: 'David Miller (QA Tester)', email: 'david.qa@devcollab.com', role: 'qa_tester', password: 'DevCollab123!' },
-                  { name: 'Emma Watson (UI/UX)', email: 'emma.designer@devcollab.com', role: 'ui_ux_designer', password: 'DevCollab123!' },
-                  { name: 'Lucas Vance (DevOps)', email: 'lucas.devops@devcollab.com', role: 'devops', password: 'DevCollab123!' },
-                ]).map((bot: any) => (
-                  <div
-                    key={bot.email}
-                    className="p-3.5 rounded-xl border border-border bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs hover:border-primary/40 transition-colors"
-                  >
-                    <div className="min-w-0 space-y-0.5">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-foreground">{bot.name}</span>
-                        <span
-                          className={cn(
-                            'text-[10px] font-medium px-2 py-0.5 rounded border',
-                            ROLE_COLORS[bot.role] || 'bg-secondary text-secondary-foreground'
-                          )}
-                        >
-                          {ROLE_LABELS[bot.role] || bot.role}
-                        </span>
-                      </div>
-                      <p className="text-muted-foreground font-mono text-[11px] truncate">
-                        {bot.email}
-                      </p>
-                      <p className="text-muted-foreground text-[11px]">
-                        Password: <code className="font-mono bg-muted px-1.5 py-0.5 rounded text-foreground">{bot.password || 'DevCollab123!'}</code>
-                      </p>
-                    </div>
-
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="shrink-0 text-xs"
-                      onClick={() => copyBotCredentials(bot.email, bot.password || 'DevCollab123!')}
-                    >
-                      {copiedBot === bot.email ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 mr-1.5 text-emerald-500" /> Copied!
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5 mr-1.5" /> Copy Login
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex justify-end pt-2">
-                <Button size="sm" onClick={() => setBotModalOpen(false)}>
-                  Done
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </DashboardLayout>
   );

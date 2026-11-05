@@ -79,7 +79,7 @@ export default function NewProjectPage() {
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
               placeholder="Summary of project architecture and roadmap..."
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="w-full rounded-xs border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             />
           </div>
 
@@ -98,7 +98,7 @@ export default function NewProjectPage() {
               <button
                 type="button"
                 onClick={() => setVisibility('private')}
-                className={`flex-1 py-2 rounded-md text-sm font-medium border transition-colors ${
+                className={`flex-1 py-2 rounded-xs text-xs font-semibold border transition-colors ${
                   visibility === 'private'
                     ? 'border-primary bg-primary/10 text-primary'
                     : 'border-input hover:bg-accent text-muted-foreground'
@@ -109,7 +109,7 @@ export default function NewProjectPage() {
               <button
                 type="button"
                 onClick={() => setVisibility('public')}
-                className={`flex-1 py-2 rounded-md text-sm font-medium border transition-colors ${
+                className={`flex-1 py-2 rounded-xs text-xs font-semibold border transition-colors ${
                   visibility === 'public'
                     ? 'border-primary bg-primary/10 text-primary'
                     : 'border-input hover:bg-accent text-muted-foreground'

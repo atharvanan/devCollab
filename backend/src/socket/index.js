@@ -67,8 +67,7 @@ const initSocket = (server) => {
         if (!project) {
           return socket.emit('error', { message: 'Project not found' });
         }
-        const { ensureProjectAccess } = require('../utils/testBots');
-        const hasAccess = await ensureProjectAccess(project, socket.user);
+        const hasAccess = project.hasAccess(socket.user);
         if (!hasAccess) {
           logger.warn(`[SOCKET] Unauthorized project:join attempt by ${socket.user.name} for ${projectId}`);
           return socket.emit('error:unauthorized', { message: 'Access denied: You are not a member of this project' });
@@ -94,8 +93,7 @@ const initSocket = (server) => {
         if (!review) return socket.emit('error', { message: 'Review not found' });
         const project = await Project.findById(review.project);
         if (project) {
-          const { ensureProjectAccess } = require('../utils/testBots');
-          const hasAccess = await ensureProjectAccess(project, socket.user);
+          const hasAccess = project.hasAccess(socket.user);
           if (!hasAccess) {
             return socket.emit('error:unauthorized', { message: 'Access denied: You are not authorized for this review' });
           }

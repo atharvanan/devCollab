@@ -52,6 +52,31 @@ async function request(urlStr, method = 'GET', data = null, token = null) {
   });
 }
 
+async function getOrCreateVerifiedUser(name, email, password = 'Password123!') {
+  let user = await User.findOne({ email }).select('+password');
+  if (!user) {
+    user = await User.create({
+      name,
+      email,
+      password,
+      role: 'user',
+      isVerified: true,
+    });
+  } else {
+    user.password = password;
+    user.isVerified = true;
+    await user.save();
+  }
+  const loginRes = await request('/auth/login', 'POST', { email, password });
+  let token = loginRes.body?.data?.accessToken;
+  if (loginRes.body?.requiresOTP) {
+    const doc = await User.findOne({ email }).select('+otp');
+    const verifyRes = await request('/auth/verify-otp', 'POST', { email, otp: doc.otp });
+    token = verifyRes.body?.data?.accessToken;
+  }
+  return { user, token };
+}
+
 async function runAdvancedGovernanceTests() {
   console.log('========================================================================');
   console.log('ADVANCED GOVERNANCE, PM SEPARATION, SECURITY & AUDIT SUITE');
@@ -84,9 +109,10 @@ async function runAdvancedGovernanceTests() {
     assert(!isPrimaryAdmin('random.user@example.com'), 'isPrimaryAdmin correctly rejects non-admin email');
 
     // Authenticate Admin
+    const adminPassword = process.env.INITIAL_ADMIN_PASSWORD || 'Password123!';
     const loginRes = await request('/auth/login', 'POST', {
       email: adminUser.email,
-      password: 'Password123',
+      password: adminPassword,
     });
     if (loginRes.status !== 200) {
       console.error('Admin login failed:', loginRes.status, loginRes.body);
@@ -106,15 +132,18 @@ async function runAdvancedGovernanceTests() {
     // 2. Safe Project Ownership Migration (No Blind Assignment to Lead Admin)
     // -------------------------------------------------------------------------
     console.log('\n--- 2. Testing Safe Project Ownership Migration ---');
+    // Ensure test PM user and staff user exist and authenticate
+    const { user: managerUser, token: managerToken } = await getOrCreateVerifiedUser('Test PM Manager', 'manager.test@example.com');
+    const { user: staffUser, token: staffToken } = await getOrCreateVerifiedUser('Test Staff Engineer', 'staff.test@example.com');
+
     // Create an orphan test project with an active PM member
-    const alex = await User.findOne({ email: 'alex.frontend@devcollab.com' });
     const fakeOwnerId = new mongoose.Types.ObjectId();
     const orphanProject = await Project.create({
       name: 'Orphan Legacy Project',
       owner: fakeOwnerId,
       status: 'active',
       members: [
-        { user: alex._id, role: 'project_manager', joinedAt: new Date(Date.now() - 100000) },
+        { user: managerUser._id, role: 'project_manager', joinedAt: new Date(Date.now() - 100000) },
       ],
     });
 
@@ -122,13 +151,13 @@ async function runAdvancedGovernanceTests() {
     const dryRunReport = await reconcileProjectOwnership({ dryRun: true });
     assert(dryRunReport.totalProjects >= 1, 'Reconciliation scanned projects');
     const orphanEntry = dryRunReport.details.find((d) => d.projectId === orphanProject._id.toString());
-    assert(orphanEntry && orphanEntry.proposedOwnerId === alex._id.toString(), 'Reconciliation proposed existing PM Alex as replacement owner (NOT Lead Admin)');
+    assert(orphanEntry && orphanEntry.proposedOwnerId === managerUser._id.toString(), 'Reconciliation proposed existing PM as replacement owner (NOT Lead Admin)');
     assert(orphanEntry.actionTaken === 'PROPOSED', 'Dry run made zero persistent database mutations');
 
     // Run reconciliation with apply
     const appliedReport = await reconcileProjectOwnership({ dryRun: false });
     const appliedProject = await Project.findById(orphanProject._id);
-    assert(appliedProject.owner.toString() === alex._id.toString(), 'Reconciliation applied ownership to existing PM Alex');
+    assert(appliedProject.owner.toString() === managerUser._id.toString(), 'Reconciliation applied ownership to existing PM');
     assert(appliedProject.owner.toString() !== adminUser._id.toString(), 'Project was NOT blindly assigned to Platform Administrator');
 
     // Verify audit log for reconciliation
@@ -153,50 +182,46 @@ async function runAdvancedGovernanceTests() {
     assert(projRes.status === 201, 'Admin created governance test project as Project Owner');
     const testProjectId = projRes.body.data.project._id;
 
-    // Login Alex Rivera (will be appointed PM)
-    const alexLogin = await request('/auth/login', 'POST', {
-      email: 'alex.frontend@devcollab.com',
-      password: 'DevCollab123!',
-    });
-    const alexToken = alexLogin.body.data.accessToken;
+    // Invite managerUser and staffUser to the project
+    await request(`/projects/${testProjectId}/invite`, 'POST', {
+      email: managerUser.email,
+      role: 'contributor',
+    }, adminToken);
+    await request(`/projects/${testProjectId}/invite`, 'POST', {
+      email: staffUser.email,
+      role: 'contributor',
+    }, adminToken);
 
-    // Login Sarah Chen (will be regular engineer / contributor)
-    const sarahLogin = await request('/auth/login', 'POST', {
-      email: 'sarah.backend@devcollab.com',
-      password: 'DevCollab123!',
-    });
-    const sarahToken = sarahLogin.body.data.accessToken;
+    // Project Owner (Admin) appoints managerUser as Project Manager
+    const appointRes = await request(`/projects/${testProjectId}/managers/${managerUser._id}`, 'POST', null, adminToken);
+    assert(appointRes.status === 200, 'Project Owner appointed managerUser as Project Manager');
 
-    // Project Owner (Admin) appoints Alex as Project Manager
-    const appointRes = await request(`/projects/${testProjectId}/managers/${alex._id}`, 'POST', null, adminToken);
-    assert(appointRes.status === 200, 'Project Owner appointed Alex as Project Manager');
-
-    // Test: PM (Alex) updates lifecycle to 'on_hold' -> Allowed (HTTP 200)
+    // Test: PM updates lifecycle to 'on_hold' -> Allowed (HTTP 200)
     const holdRes = await request(`/projects/${testProjectId}/lifecycle`, 'PATCH', {
       status: 'on_hold',
       reason: 'Awaiting design assets',
-    }, alexToken);
+    }, managerToken);
     assert(holdRes.status === 200, 'Project Manager successfully transitioned project to On Hold');
 
-    // Test: PM (Alex) updates lifecycle to 'active' -> Allowed (HTTP 200)
+    // Test: PM updates lifecycle to 'active' -> Allowed (HTTP 200)
     const resumeRes = await request(`/projects/${testProjectId}/lifecycle`, 'PATCH', {
       status: 'active',
       reason: 'Assets received',
-    }, alexToken);
+    }, managerToken);
     assert(resumeRes.status === 200, 'Project Manager successfully resumed project to Active');
 
-    // Test: PM (Alex) updates lifecycle to 'completed' -> Allowed (HTTP 200)
+    // Test: PM updates lifecycle to 'completed' -> Allowed (HTTP 200)
     const completeRes = await request(`/projects/${testProjectId}/lifecycle`, 'PATCH', {
       status: 'completed',
       reason: 'Sprint goal accomplished',
-    }, alexToken);
+    }, managerToken);
     assert(completeRes.status === 200, 'Project Manager successfully marked project as Completed');
 
-    // Test: PM (Alex) attempts to 'archived' -> BLOCKED with HTTP 403 (Requires Owner)
+    // Test: PM attempts to 'archived' -> BLOCKED with HTTP 403 (Requires Owner)
     const archivePmRes = await request(`/projects/${testProjectId}/lifecycle`, 'PATCH', {
       status: 'archived',
       reason: 'Attempting unauthorized archive',
-    }, alexToken);
+    }, managerToken);
     assert(
       archivePmRes.status === 403,
       `Project Manager cannot archive project without Owner authorization (HTTP 403 Forbidden)`
@@ -220,8 +245,8 @@ async function runAdvancedGovernanceTests() {
     // Restore to active for remaining tests
     await request(`/projects/${testProjectId}/lifecycle`, 'PATCH', { status: 'active' }, adminToken);
 
-    // Test: PM (Alex) attempts to delete project -> BLOCKED with HTTP 403
-    const deletePmRes = await request(`/projects/${testProjectId}`, 'DELETE', null, alexToken);
+    // Test: PM attempts to delete project -> BLOCKED with HTTP 403
+    const deletePmRes = await request(`/projects/${testProjectId}`, 'DELETE', null, managerToken);
     assert(
       deletePmRes.status === 403,
       `Project Manager cannot delete project (HTTP 403 Forbidden)`
@@ -235,9 +260,8 @@ async function runAdvancedGovernanceTests() {
     });
     assert(deleteBlockedAudit !== null, 'Failed deletion escalation attempt recorded in SecurityAudit with status: blocked');
 
-    // Test: PM (Alex) attempts to appoint Sarah as another PM -> BLOCKED with HTTP 403
-    const sarahUser = await User.findOne({ email: 'sarah.backend@devcollab.com' });
-    const appointPmRes = await request(`/projects/${testProjectId}/managers/${sarahUser._id}`, 'POST', null, alexToken);
+    // Test: PM attempts to appoint staffUser as another PM -> BLOCKED with HTTP 403
+    const appointPmRes = await request(`/projects/${testProjectId}/managers/${staffUser._id}`, 'POST', null, managerToken);
     assert(
       appointPmRes.status === 403,
       `Project Manager cannot appoint other Project Managers (HTTP 403 Forbidden)`
@@ -251,10 +275,10 @@ async function runAdvancedGovernanceTests() {
     });
     assert(pmAppointBlockedAudit !== null, 'Failed PM appointment escalation attempt recorded in SecurityAudit with status: blocked');
 
-    // Test: PM (Alex) attempts to transfer ownership -> BLOCKED with HTTP 403
+    // Test: PM attempts to transfer ownership -> BLOCKED with HTTP 403
     const transferPmRes = await request(`/projects/${testProjectId}/transfer-ownership`, 'POST', {
-      newOwnerId: alex._id.toString(),
-    }, alexToken);
+      newOwnerId: managerUser._id.toString(),
+    }, managerToken);
     assert(
       transferPmRes.status === 403,
       `Project Manager cannot transfer project ownership (HTTP 403 Forbidden)`

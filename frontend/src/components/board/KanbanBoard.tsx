@@ -10,11 +10,13 @@ import { useSocket, useJoinRoom } from '@/hooks/useSocket';
 import { COLUMNS, COLUMN_LABELS } from '@/lib/utils';
 import { ChevronLeft, ChevronRight, ShieldCheck, AlertTriangle, AlertCircle, CheckCircle2, Lock } from 'lucide-react';
 import { useRef } from 'react';
+import { useToast } from '@/components/ui/Toast';
 import { BoardColumn } from './BoardColumn';
 import { TaskModal } from './TaskModal';
 
 export function KanbanBoard({ projectId, project }: { projectId: string; project?: any }) {
   const dispatch = useAppDispatch();
+  const { toast } = useToast();
   const columns = useAppSelector((s) => s.board.columns);
   const { user } = useAppSelector((s) => s.auth);
   const qc = useQueryClient();
@@ -156,7 +158,7 @@ export function KanbanBoard({ projectId, project }: { projectId: string; project
   return (
     <div className="w-full max-w-full min-w-0">
             {/* Enterprise SLA & SDLC Compliance Bar */}
-      <div className="mb-3 p-2.5 sm:p-3 rounded-xl border border-border/80 bg-card/60 backdrop-blur-xs flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs">
+      <div className="mb-3 p-2.5 sm:p-3 rounded-xs border border-border/80 bg-card/60 backdrop-blur-xs flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-1.5 font-semibold text-foreground">
             <ShieldCheck className="w-4 h-4 text-primary" />
@@ -167,20 +169,20 @@ export function KanbanBoard({ projectId, project }: { projectId: string; project
           <div className="h-3 w-px bg-border hidden sm:block" />
 
           <div className="flex items-center gap-1.5">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs text-[11px] font-mono font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
               <CheckCircle2 className="w-3 h-3" /> {slaMetrics?.compliant ?? 0} Compliant
             </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs text-[11px] font-mono font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
               <AlertTriangle className="w-3 h-3" /> {slaMetrics?.atRisk ?? 0} At Risk
             </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs text-[11px] font-mono font-medium bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
               <AlertCircle className="w-3 h-3" /> {slaMetrics?.breached ?? 0} Breached
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="hidden md:inline-flex items-center gap-1 text-[11px] text-muted-foreground bg-secondary/60 px-2 py-0.5 rounded-md border border-border/50">
+          <span className="hidden md:inline-flex items-center gap-1 text-[11px] text-muted-foreground bg-secondary/60 px-2 py-0.5 rounded-xs border border-border/50">
             <Lock className="w-3 h-3 text-amber-500" />
             {isPM ? 'PM Authority: Full Sign-Off Active' : 'Strict Hierarchy: PM Sign-Off Required for Done'}
           </span>
@@ -196,7 +198,7 @@ export function KanbanBoard({ projectId, project }: { projectId: string; project
           <button
             type="button"
             onClick={() => scrollBoard('left')}
-            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground bg-secondary/60 hover:bg-secondary border border-border/70 rounded-md transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground bg-secondary/60 hover:bg-secondary border border-border/70 rounded-xs transition-colors cursor-pointer"
             title="Scroll left to Backlog / To Do"
           >
             <ChevronLeft className="w-3.5 h-3.5" /> Scroll Left

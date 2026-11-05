@@ -5,10 +5,8 @@ const { protect } = require('../middleware/auth.middleware');
 router.use(protect);
 
 router.route('/').get(ctrl.getProjects).post(ctrl.createProject);
-router.get('/test/bot-credentials', ctrl.getBotCredentials);
 router.route('/:id').get(ctrl.getProject).put(ctrl.updateProject).patch(ctrl.updateProject).delete(ctrl.deleteProject);
 router.post('/:id/invite', ctrl.inviteMember);
-router.post('/:id/seed-bots', ctrl.seedProjectBots);
 router.post('/:id/transfer-ownership', ctrl.transferOwnership);
 router.post('/:id/managers/:userId', ctrl.appointProjectManager);
 router.delete('/:id/managers/:userId', ctrl.revokeProjectManager);

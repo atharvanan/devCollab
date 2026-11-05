@@ -71,16 +71,18 @@ async function runDeleteAccountTests() {
     const mongoUri = process.env.MONGODB_URI || 'mongodb://mongodb:27017/devcollab';
     await mongoose.connect(mongoUri);
 
-    // 1. Authenticate Admin (Atharva)
+    // 1. Authenticate Admin
     console.log('\n--- 1. Testing Admin Account Deletion Protection ---');
+    const adminEmail = process.env.PRIMARY_ADMIN_EMAIL || 'admin@devcollab.com';
+    const adminPassword = 'Password123!';
     await request('/auth/login', 'POST', {
-      email: 'atharvanandurkar2411@gmail.com',
-      password: 'Password123',
+      email: adminEmail,
+      password: adminPassword,
     });
-    const atharvaDoc = await User.findOne({ email: 'atharvanandurkar2411@gmail.com' }).select('+otp');
+    const adminDoc = await User.findOne({ email: adminEmail }).select('+otp');
     const adminVerify = await request('/auth/verify-otp', 'POST', {
-      email: 'atharvanandurkar2411@gmail.com',
-      otp: atharvaDoc.otp,
+      email: adminEmail,
+      otp: adminDoc.otp,
     });
     const adminToken = adminVerify.body.data?.accessToken;
     const adminUserId = adminVerify.body.data?.user?._id || adminVerify.body.data?.user?.id;
@@ -88,7 +90,7 @@ async function runDeleteAccountTests() {
 
     // Test 1: Admin account deletion must be blocked with HTTP 403
     const deleteAdminRes = await request('/users/account', 'DELETE', {
-      password: 'Password123',
+      password: adminPassword,
     }, adminToken);
     assert(
       deleteAdminRes.status === 403,
@@ -152,7 +154,7 @@ async function runDeleteAccountTests() {
 
     // Invite another human member (Admin) to this project to test team project ownership restriction
     const inviteRes = await request(`/projects/${projId}/invite`, 'POST', {
-      email: 'atharvanandurkar2411@gmail.com',
+      email: adminEmail,
       role: 'contributor',
     }, userToken);
     assert(inviteRes.status === 200, 'Human team member invited to project');
@@ -181,7 +183,16 @@ async function runDeleteAccountTests() {
     const soloProjId = soloProjRes.body.data?.project?._id || soloProjRes.body.data?.project?.id;
 
     // Add user as a member to an existing project owned by Admin (DevCollab project)
-    const devCollabProj = await Project.findOne({ name: 'DevCollab' });
+    let devCollabProj = await Project.findOne({ name: 'DevCollab' });
+    if (!devCollabProj) {
+      devCollabProj = await Project.create({
+        name: 'DevCollab',
+        description: 'Commercial Engineering Workspace',
+        owner: adminUserId,
+        status: 'active',
+        members: [{ user: adminUserId, role: 'project_manager' }],
+      });
+    }
     if (devCollabProj) {
       await Project.findByIdAndUpdate(devCollabProj._id, {
         $addToSet: { members: { user: userId, role: 'contributor' } },

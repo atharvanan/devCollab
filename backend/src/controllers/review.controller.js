@@ -5,13 +5,12 @@ const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 const { getIO } = require('../socket');
 const { canRoleAccessDomain, ROLE_DISPLAY_NAMES, recordSecurityViolation } = require('../utils/roleCompliance');
-const { isTestBotEmail, ensureProjectAccess } = require('../utils/testBots');
 
 exports.createReview = catchAsync(async (req, res) => {
   const { projectId, title, description, code, language, domain = 'general' } = req.body;
   const project = await Project.findById(projectId);
   if (!project) throw new AppError('Project not found', 404);
-  const hasAccess = await ensureProjectAccess(project, req.user);
+  const hasAccess = project.hasAccess(req.user);
   if (!hasAccess) throw new AppError('Access denied', 403);
 
   const userRole = project.getUserRole(req.user._id);
@@ -81,7 +80,7 @@ exports.getReviews = catchAsync(async (req, res) => {
 
   if (projectId) {
     query.project = projectId;
-  } else if (req.user?.role !== 'admin' && !isTestBotEmail(req.user?.email)) {
+  } else if (req.user?.role !== 'admin') {
     const Project = require('../models/Project');
     const projects = await Project.find({
       $or: [
@@ -101,7 +100,7 @@ exports.getReviews = catchAsync(async (req, res) => {
   if (projectId) {
     const project = await Project.findById(projectId);
     if (!project) throw new AppError('Project not found', 404);
-    const hasAccess = await ensureProjectAccess(project, req.user);
+    const hasAccess = project.hasAccess(req.user);
     if (!hasAccess) throw new AppError('Access denied: You are not a member of this project', 403);
   }
 
@@ -137,7 +136,7 @@ exports.getReview = catchAsync(async (req, res) => {
 
   const project = await Project.findById(review.project);
   if (!project) throw new AppError('Project not found', 404);
-  const hasAccess = await ensureProjectAccess(project, req.user);
+  const hasAccess = project.hasAccess(req.user);
   if (!hasAccess) throw new AppError('Access denied: You are not authorized to view reviews in this project', 403);
 
   res.json({ success: true, data: { review } });
@@ -150,7 +149,7 @@ exports.addInlineComment = catchAsync(async (req, res) => {
 
   const project = await Project.findById(review.project);
   if (!project) throw new AppError('Project not found', 404);
-  const hasAccess = await ensureProjectAccess(project, req.user);
+  const hasAccess = project.hasAccess(req.user);
   if (!hasAccess) throw new AppError('Access denied: You are not a member of this project', 403);
 
   const userRole = project.getUserRole(req.user._id);
@@ -201,7 +200,7 @@ exports.resolveComment = catchAsync(async (req, res) => {
 
   const project = await Project.findById(review.project);
   if (!project) throw new AppError('Project not found', 404);
-  const hasAccess = await ensureProjectAccess(project, req.user);
+  const hasAccess = project.hasAccess(req.user);
   if (!hasAccess) throw new AppError('Access denied', 403);
 
   const userRole = project.getUserRole(req.user._id);
@@ -225,7 +224,7 @@ exports.addGeneralComment = catchAsync(async (req, res) => {
 
   const project = await Project.findById(review.project);
   if (!project) throw new AppError('Project not found', 404);
-  const hasAccess = await ensureProjectAccess(project, req.user);
+  const hasAccess = project.hasAccess(req.user);
   if (!hasAccess) throw new AppError('Access denied: You are not a member of this project', 403);
 
   const userRole = project.getUserRole(req.user._id);
@@ -260,7 +259,7 @@ exports.updateStatus = catchAsync(async (req, res) => {
 
   const project = await Project.findById(review.project);
   if (!project) throw new AppError('Project not found', 404);
-  const hasAccess = await ensureProjectAccess(project, req.user);
+  const hasAccess = project.hasAccess(req.user);
   if (!hasAccess) throw new AppError('Access denied: You are not a member of this project', 403);
 
   const isPM = project.isProjectManager(req.user._id);

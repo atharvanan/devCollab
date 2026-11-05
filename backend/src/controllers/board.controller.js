@@ -5,19 +5,13 @@ const Notification = require('../models/Notification');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 const { getIO } = require('../socket');
-const {
-  TEST_BOTS,
-  isTestBotEmail,
-  ensureBotUser,
-  ensureProjectAccess,
-} = require('../utils/testBots');
 
 exports.getBoard = catchAsync(async (req, res) => {
   const { projectId } = req.params;
   const project = await Project.findById(projectId);
   if (!project) throw new AppError('Project not found', 404);
 
-  const hasAccess = await ensureProjectAccess(project, req.user);
+  const hasAccess = project.hasAccess(req.user);
   if (!hasAccess) throw new AppError('Access denied', 403);
 
   const { evaluateTaskSla } = require('../utils/sla');
@@ -70,7 +64,7 @@ exports.createTask = catchAsync(async (req, res) => {
   const project = await Project.findById(projectId);
   if (!project) throw new AppError('Project not found', 404);
 
-  const hasAccess = await ensureProjectAccess(project, req.user);
+  const hasAccess = project.hasAccess(req.user);
   if (!hasAccess) throw new AppError('Access denied', 403);
 
   const userRole = project.getUserRole(req.user._id);
@@ -79,15 +73,6 @@ exports.createTask = catchAsync(async (req, res) => {
   }
 
   let assignees = Array.isArray(req.body.assignees) ? [...req.body.assignees] : [];
-
-  // If assignees list is empty but targetRole is specified, auto-assign the matching role's bot/engineer
-  if (assignees.length === 0 && req.body.targetRole && req.body.targetRole !== 'any') {
-    const bot = TEST_BOTS.find((b) => b.role === req.body.targetRole);
-    if (bot) {
-      const botUser = await ensureBotUser(bot);
-      assignees.push(botUser._id);
-    }
-  }
 
   // Ensure all assignees are legitimate members of this project (Security: TASK-009, AUTO-TASK-005, ROLE-013)
   for (const assigneeId of assignees) {
@@ -159,7 +144,7 @@ exports.updateTask = catchAsync(async (req, res) => {
   const project = await Project.findById(task.project);
   if (!project) throw new AppError('Project not found', 404);
 
-  const hasAccess = await ensureProjectAccess(project, req.user);
+  const hasAccess = project.hasAccess(req.user);
   if (!hasAccess) throw new AppError('Access denied: You are not authorized to access this project', 403);
 
   const userRole = project.getUserRole(req.user._id);
@@ -225,7 +210,7 @@ exports.toggleTaskComplete = catchAsync(async (req, res) => {
 
   const project = await Project.findById(task.project);
   if (!project) throw new AppError('Project not found', 404);
-  const hasAccess = await ensureProjectAccess(project, req.user);
+  const hasAccess = project.hasAccess(req.user);
   if (!hasAccess) throw new AppError('Access denied', 403);
 
   const isAssignee = task.assignees.some((a) => a.toString() === req.user._id.toString());
@@ -292,7 +277,7 @@ exports.submitTaskResolution = catchAsync(async (req, res) => {
 
   const project = await Project.findById(task.project);
   if (!project) throw new AppError('Project not found', 404);
-  const hasAccess = await ensureProjectAccess(project, req.user);
+  const hasAccess = project.hasAccess(req.user);
   if (!hasAccess) throw new AppError('Access denied', 403);
 
   const isAssignee = task.assignees.some((a) => a.toString() === req.user._id.toString());
@@ -451,7 +436,7 @@ exports.moveTask = catchAsync(async (req, res) => {
   const project = await Project.findById(task.project);
   if (!project) throw new AppError('Project not found', 404);
 
-  const hasAccess = await ensureProjectAccess(project, req.user);
+  const hasAccess = project.hasAccess(req.user);
   if (!hasAccess) throw new AppError('Access denied', 403);
 
   const isPM = project.isProjectManager(req.user._id);
@@ -566,7 +551,7 @@ exports.deleteTask = catchAsync(async (req, res) => {
   const project = await Project.findById(task.project);
   if (!project) throw new AppError('Project not found', 404);
 
-  const hasAccess = await ensureProjectAccess(project, req.user);
+  const hasAccess = project.hasAccess(req.user);
   if (!hasAccess) throw new AppError('Access denied', 403);
 
   const isPM = project.isProjectManager(req.user._id);
@@ -594,7 +579,7 @@ exports.addTaskComment = catchAsync(async (req, res) => {
 
   const project = await Project.findById(task.project);
   if (!project) throw new AppError('Project not found', 404);
-  const hasAccess = await ensureProjectAccess(project, req.user);
+  const hasAccess = project.hasAccess(req.user);
   if (!hasAccess) throw new AppError('Access denied', 403);
 
   const userRole = project.getUserRole(req.user._id) || (project.owner.toString() === req.user._id.toString() ? 'project_manager' : 'member');

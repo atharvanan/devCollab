@@ -130,21 +130,21 @@ export default function LoginPage() {
       <div className="w-full max-w-md space-y-6">
         {/* Header */}
         <div className="text-center space-y-3">
-          <Link href="/" className="inline-block group transition-transform hover:scale-105">
-            <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center mx-auto shadow-md">
-              <Code2 className="w-6 h-6 text-white" />
+          <Link href="/" className="inline-block group">
+            <div className="w-10 h-10 rounded-md bg-primary flex items-center justify-center mx-auto shadow-xs">
+              <Code2 className="w-5 h-5 text-white" />
             </div>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Welcome back</h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <h1 className="text-xl font-bold tracking-tight text-foreground">Welcome back</h1>
+            <p className="text-xs text-muted-foreground mt-1">
               Sign in to your DevCollab collaborative workspace
             </p>
           </div>
         </div>
 
         {/* Card Form */}
-        <div className="p-7 sm:p-8 rounded-2xl border border-border/80 bg-card shadow-lg">
+        <div className="p-6 sm:p-7 rounded-md border border-border bg-card shadow-xs">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1.5">
               <label htmlFor="login-email" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">

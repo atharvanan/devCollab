@@ -158,7 +158,7 @@ export function KanbanBoard({ projectId, project }: { projectId: string; project
   return (
     <div className="w-full max-w-full min-w-0">
             {/* Enterprise SLA & SDLC Compliance Bar */}
-      <div className="mb-3.5 p-3 sm:p-3.5 rounded-xl border border-border/80 bg-card/80 backdrop-blur-md flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs">
+      <div className="mb-3 p-3 rounded-md border border-border bg-card flex flex-wrap items-center justify-between gap-3 text-xs shadow-2xs">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-1.5 font-semibold text-foreground">
             <ShieldCheck className="w-4 h-4 text-primary" />
@@ -169,21 +169,21 @@ export function KanbanBoard({ projectId, project }: { projectId: string; project
           <div className="h-3 w-px bg-border hidden sm:block" />
 
           <div className="flex items-center gap-1.5">
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-mono">
               <CheckCircle2 className="w-3 h-3" /> {slaMetrics?.compliant ?? 0} Compliant
             </span>
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-[11px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-mono">
               <AlertTriangle className="w-3 h-3" /> {slaMetrics?.atRisk ?? 0} At Risk
             </span>
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-[11px] font-medium bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 font-mono">
               <AlertCircle className="w-3 h-3" /> {slaMetrics?.breached ?? 0} Breached
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="hidden md:inline-flex items-center gap-1 text-xs text-muted-foreground bg-secondary/60 px-3 py-1 rounded-full border border-border/50">
-            <Lock className="w-3 h-3 text-amber-500" />
+          <span className="hidden md:inline-flex items-center gap-1 text-[11px] text-muted-foreground bg-secondary px-2.5 py-0.5 rounded-sm border border-border font-medium">
+            <Lock className="w-3 h-3 text-muted-foreground" />
             {isPM ? 'PM Authority: Full Sign-Off Active' : 'Strict Hierarchy: PM Sign-Off Required for Done'}
           </span>
         </div>

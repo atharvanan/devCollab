@@ -221,6 +221,22 @@ export function CollaborativeEditor({
         if (msgId && prev.some((m) => (m._id || m.id)?.toString() === msgId)) {
           return prev;
         }
+        // Deduplicate against identical rapid delivery (same user, content, and timestamp window)
+        const msgUserId = (msg.user?._id || msg.user)?.toString();
+        const msgTime = new Date(msg.timestamp || msg.createdAt || Date.now()).getTime();
+        if (
+          prev.some((m) => {
+            const mUserId = (m.user?._id || m.user)?.toString();
+            const mTime = new Date(m.timestamp || m.createdAt || Date.now()).getTime();
+            return (
+              mUserId === msgUserId &&
+              (m.content || m.message) === (msg.content || msg.message) &&
+              Math.abs(mTime - msgTime) < 3000
+            );
+          })
+        ) {
+          return prev;
+        }
         return [...prev, msg];
       });
       setTimeout(() => {
@@ -335,39 +351,39 @@ export function CollaborativeEditor({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // 5b. Send Live Chat Message
+  // 5b. Send Live Chat Message - Single delivery pipeline with socket priority & HTTP fallback
   const handleSendChatMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim() || !sessionId) return;
     const text = chatInput.trim();
     setChatInput('');
 
-    // Emit via socket for instant live broadcast
     const socket = getSocket();
     if (socket && socket.connected) {
+      // Primary: Real-time socket broadcast (server persists to DB and broadcasts to room)
       socket.emit('collab:chat', {
         sessionId,
         message: text,
       });
-    }
-
-    // Dual-sync to REST endpoint for persistence and guaranteed delivery
-    try {
-      const res = await apiClient.post(`/collab/${sessionId}/messages`, {
-        content: text,
-      });
-      if (res.data?.data?.message) {
-        const msg = res.data.data.message;
-        setMessages((prev) => {
-          const msgId = (msg._id || msg.id)?.toString();
-          if (msgId && prev.some((m) => (m._id || m.id)?.toString() === msgId)) {
-            return prev;
-          }
-          return [...prev, msg];
+    } else {
+      // Fallback: REST endpoint only when disconnected
+      try {
+        const res = await apiClient.post(`/collab/${sessionId}/messages`, {
+          content: text,
         });
+        if (res.data?.data?.message) {
+          const msg = res.data.data.message;
+          setMessages((prev) => {
+            const msgId = (msg._id || msg.id)?.toString();
+            if (msgId && prev.some((m) => (m._id || m.id)?.toString() === msgId)) {
+              return prev;
+            }
+            return [...prev, msg];
+          });
+        }
+      } catch (err) {
+        toast.error('Failed to send message. Please reconnect.');
       }
-    } catch (err) {
-      // Socket fallback
     }
   };
 
@@ -447,14 +463,14 @@ export function CollaborativeEditor({
       />
 
       {/* 2. Main Live Collaborative Code Studio */}
-      <div className="rounded-2xl border border-border/80 bg-[#141724] text-[#e2e8f0] shadow-xl overflow-hidden">
+      <div className="rounded-lg border border-[#30363d] bg-[#0d1117] text-[#c9d1d9] shadow-sm overflow-hidden">
         {/* Studio Control Toolbar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-[#0d101d] border-b border-[#212638] text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3.5 py-2 bg-[#161b22] border-b border-[#30363d] text-xs">
           {/* Left: Language & Status */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 font-mono">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-live" />
-              <span className="font-semibold text-white tracking-wide">LIVE PAIR CODING</span>
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-1.5 font-medium">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+              <span className="font-semibold text-xs text-[#f0f6fc]">Live Pair-Coding</span>
             </div>
 
             <select
@@ -463,7 +479,7 @@ export function CollaborativeEditor({
                 setLanguage(e.target.value);
                 setHasUnsaved(true);
               }}
-              className="bg-[#1e2337] text-white border border-[#2b324d] rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+              className="bg-[#21262d] text-[#c9d1d9] border border-[#30363d] rounded px-2.5 py-1 text-xs focus:outline-none focus:border-[#58a6ff]"
             >
               {SUPPORTED_LANGUAGES.map((l) => (
                 <option key={l.value} value={l.value}>
@@ -474,19 +490,19 @@ export function CollaborativeEditor({
 
             {/* Active typing indicator */}
             {typingUser && (
-              <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-sky-400 bg-sky-500/10 px-2.5 py-0.5 rounded-full border border-sky-500/20 animate-pulse font-mono">
-                <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+              <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-[#8b949e] font-mono">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#58a6ff]" />
                 {typingUser.name} is typing...
               </span>
             )}
           </div>
 
           {/* Right: Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={handleRunCode}
               disabled={running}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs transition-colors shadow-xs active:scale-98"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-[#238636] hover:bg-[#2ea043] text-white font-medium text-xs transition-colors shadow-xs"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
               {running ? 'Running...' : 'Run Code'}
@@ -496,10 +512,10 @@ export function CollaborativeEditor({
               onClick={handleSaveCode}
               disabled={saving}
               className={cn(
-                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors active:scale-98',
+                'inline-flex items-center gap-1.5 px-3 py-1 rounded border text-xs font-medium transition-colors',
                 hasUnsaved
-                  ? 'bg-primary text-white border-primary shadow-xs'
-                  : 'bg-[#1e2337] text-[#94a3b8] border-[#2b324d] hover:text-white'
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-[#21262d] text-[#c9d1d9] border-[#30363d] hover:bg-[#30363d]'
               )}
             >
               <Save className="w-3.5 h-3.5" />
@@ -509,17 +525,17 @@ export function CollaborativeEditor({
             <button
               onClick={() => setShowChat((v) => !v)}
               className={cn(
-                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors shadow-2xs active:scale-98',
+                'inline-flex items-center gap-1.5 px-3 py-1 rounded border text-xs font-medium transition-colors',
                 showChat
-                  ? 'bg-sky-600 text-white border-sky-500'
-                  : 'bg-[#1e2337] text-[#94a3b8] border-[#2b324d] hover:text-white'
+                  ? 'bg-[#21262d] text-[#58a6ff] border-[#58a6ff]/50'
+                  : 'bg-[#21262d] text-[#c9d1d9] border-[#30363d] hover:bg-[#30363d]'
               )}
-              title="Toggle Real-Time Team Chat"
+              title="Toggle Team Chat"
             >
               <MessageSquare className="w-3.5 h-3.5" />
               <span>Team Chat</span>
               {messages.length > 0 && (
-                <span className="ml-0.5 px-2 py-0.5 rounded-full text-[10px] bg-sky-950/80 text-sky-200 font-mono font-bold border border-sky-400/30">
+                <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-[#30363d] text-[#f0f6fc] font-mono font-semibold">
                   {messages.length}
                 </span>
               )}
@@ -527,7 +543,7 @@ export function CollaborativeEditor({
 
             <button
               onClick={() => setExportModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition-colors shadow-2xs active:scale-98"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded border border-[#30363d] bg-[#21262d] hover:bg-[#30363d] text-[#c9d1d9] font-medium text-xs transition-colors"
               title="Convert this code into a project Code Review"
             >
               <GitPullRequest className="w-3.5 h-3.5" />
@@ -536,7 +552,7 @@ export function CollaborativeEditor({
 
             <button
               onClick={handleCopy}
-              className="p-1.5 rounded-lg bg-[#1e2337] border border-[#2b324d] text-[#94a3b8] hover:text-white transition-colors"
+              className="p-1.5 rounded border border-[#30363d] bg-[#21262d] hover:bg-[#30363d] text-[#8b949e] hover:text-[#c9d1d9] transition-colors"
               title="Copy code"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -544,7 +560,7 @@ export function CollaborativeEditor({
 
             <button
               onClick={() => setFullscreen((v) => !v)}
-              className="p-1.5 rounded-md bg-[#1e2337] border border-[#2b324d] text-[#94a3b8] hover:text-white transition-colors"
+              className="p-1.5 rounded border border-[#30363d] bg-[#21262d] hover:bg-[#30363d] text-[#8b949e] hover:text-[#c9d1d9] transition-colors"
               title={fullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
             >
               {fullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
@@ -611,23 +627,23 @@ export function CollaborativeEditor({
             />
           </div>
 
-          {/* Real-time Team Chat Drawer */}
+          {/* Real-time Team Chat Drawer - GitHub PR / Slack Clean Engineering Style */}
           {showChat && (
-            <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-[#212638] bg-[#0e111d] flex flex-col text-xs font-sans">
-              <div className="px-3.5 py-2.5 bg-[#0a0d18] border-b border-[#1f2538] flex items-center justify-between">
+            <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-[#30363d] bg-[#0d1117] flex flex-col text-xs font-sans">
+              <div className="px-3.5 py-2.5 bg-[#161b22] border-b border-[#30363d] flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <MessageSquare className="w-3.5 h-3.5 text-sky-400" />
-                  <span className="font-semibold text-white">Live Session Chat</span>
+                  <MessageSquare className="w-3.5 h-3.5 text-[#58a6ff]" />
+                  <span className="font-semibold text-[#f0f6fc]">Session Chat</span>
                 </div>
-                <span className="text-[10px] text-[#94a3b8]">
+                <span className="text-[10px] text-[#8b949e]">
                   {activeUsers.length + 1} online
                 </span>
               </div>
 
               {/* Chat Messages Stream */}
-              <div className="flex-1 p-3 overflow-y-auto space-y-2.5 max-h-[280px] lg:max-h-none">
+              <div className="flex-1 p-3 overflow-y-auto space-y-2 max-h-[280px] lg:max-h-none divide-y divide-[#21262d]/60">
                 {messages.length === 0 ? (
-                  <div className="text-center py-8 text-[#64748b] space-y-1">
+                  <div className="text-center py-8 text-[#8b949e] space-y-1">
                     <p className="font-medium text-xs">No messages yet</p>
                     <p className="text-[10px]">Chat in real-time with teammates while pair programming.</p>
                   </div>
@@ -635,22 +651,14 @@ export function CollaborativeEditor({
                   messages.map((m: any, idx: number) => {
                     const isMe = (m.user?._id || m.user)?.toString() === user?._id?.toString();
                     return (
-                      <div
-                        key={idx}
-                        className={cn(
-                          'p-3 rounded-xl text-xs space-y-1 shadow-xs',
-                          isMe
-                            ? 'bg-sky-500/15 border border-sky-500/25 ml-2'
-                            : 'bg-[#161a2c] border border-[#232840] mr-2'
-                        )}
-                      >
-                        <div className="flex items-center justify-between gap-1 text-[10px] text-[#94a3b8]">
-                          <span className={cn('font-semibold', isMe ? 'text-sky-300' : 'text-slate-200')}>
+                      <div key={idx} className="space-y-0.5 pt-2 first:pt-0">
+                        <div className="flex items-center justify-between gap-1 text-[11px]">
+                          <span className={cn('font-semibold', isMe ? 'text-[#58a6ff]' : 'text-[#f0f6fc]')}>
                             {m.name || 'Collaborator'} {isMe && '(You)'}
                           </span>
-                          <span>{formatRelativeTime(m.timestamp || m.createdAt)}</span>
+                          <span className="text-[#8b949e] text-[10px] font-mono">{formatRelativeTime(m.timestamp || m.createdAt)}</span>
                         </div>
-                        <p className="text-white whitespace-pre-wrap break-words">{m.content || m.message}</p>
+                        <p className="text-[#c9d1d9] text-xs whitespace-pre-wrap break-words leading-relaxed">{m.content || m.message}</p>
                       </div>
                     );
                   })
@@ -659,18 +667,18 @@ export function CollaborativeEditor({
               </div>
 
               {/* Chat Input Box */}
-              <form onSubmit={handleSendChatMessage} className="p-2 border-t border-[#1f2538] bg-[#0a0d18] flex gap-1.5">
+              <form onSubmit={handleSendChatMessage} className="p-2.5 border-t border-[#30363d] bg-[#161b22] flex gap-2">
                 <input
                   type="text"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Message team..."
-                  className="flex-1 bg-[#161a2c] text-white placeholder-[#64748b] text-xs px-3 py-2 rounded-lg border border-[#2b3352] focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  placeholder="Type a message..."
+                  className="flex-1 bg-[#0d1117] text-[#c9d1d9] placeholder-[#8b949e] text-xs px-3 py-1.5 rounded border border-[#30363d] focus:outline-none focus:border-[#58a6ff]"
                 />
                 <button
                   type="submit"
                   disabled={!chatInput.trim()}
-                  className="px-3 py-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-white rounded-lg transition-colors"
+                  className="px-3 py-1.5 bg-[#238636] hover:bg-[#2ea043] disabled:opacity-40 text-white rounded font-medium text-xs transition-colors shrink-0"
                 >
                   <Send className="w-3.5 h-3.5" />
                 </button>

@@ -153,8 +153,8 @@ export function TaskCard({
           <div className="pt-0.5">
             <span
               className={cn(
-                'inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded border tracking-tight',
-                task.slaStatus.state === 'breached' && 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 animate-pulse',
+                'inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-sm border font-mono tracking-tight',
+                task.slaStatus.state === 'breached' && 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30',
                 task.slaStatus.state === 'at_risk' && 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30',
                 task.slaStatus.state === 'fulfilled' && 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
                 task.slaStatus.state === 'healthy' && 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/30'

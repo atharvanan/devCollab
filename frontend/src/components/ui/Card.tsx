@@ -6,7 +6,7 @@ export const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDi
     <div
       ref={ref}
       className={cn(
-        'rounded-xl border border-border/70 bg-card text-card-foreground shadow-sm hover:shadow-md transition-all duration-200',
+        'rounded-md border border-border bg-card text-card-foreground shadow-xs transition-colors',
         className
       )}
       {...props}
@@ -16,19 +16,19 @@ export const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDi
 Card.displayName = 'Card';
 
 export const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => <div ref={ref} className={cn('flex flex-col space-y-1.5 p-5 sm:p-6', className)} {...props} />
+  ({ className, ...props }, ref) => <div ref={ref} className={cn('flex flex-col space-y-1.5 p-4 sm:p-5', className)} {...props} />
 );
 CardHeader.displayName = 'CardHeader';
 
 export const CardTitle = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLHeadingElement>>(
   ({ className, ...props }, ref) => (
-    <h3 ref={ref} className={cn('text-base font-semibold leading-none tracking-tight text-foreground', className)} {...props} />
+    <h3 ref={ref} className={cn('text-sm font-semibold leading-none tracking-tight text-foreground', className)} {...props} />
   )
 );
 CardTitle.displayName = 'CardTitle';
 
 export const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => <div ref={ref} className={cn('p-5 sm:p-6 pt-0', className)} {...props} />
+  ({ className, ...props }, ref) => <div ref={ref} className={cn('p-4 sm:p-5 pt-0', className)} {...props} />
 );
 CardContent.displayName = 'CardContent';
 
@@ -39,12 +39,12 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export function Badge({ className, variant = 'default', dot = false, children, ...props }: BadgeProps) {
   const variantStyles = {
-    default: 'bg-primary/10 text-primary border border-primary/25',
-    outline: 'border border-border/80 text-foreground bg-background/50',
-    secondary: 'bg-secondary text-secondary-foreground border border-border/40',
-    success: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25',
-    warning: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25',
-    info: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/25',
+    default: 'bg-primary/10 text-primary border border-primary/20',
+    outline: 'border border-border text-foreground bg-background',
+    secondary: 'bg-secondary text-secondary-foreground border border-border/50',
+    success: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20',
+    warning: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20',
+    info: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20',
   };
 
   const dotColors = {
@@ -59,7 +59,7 @@ export function Badge({ className, variant = 'default', dot = false, children, .
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium tracking-tight select-none border shadow-2xs',
+        'inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 text-xs font-medium tracking-tight select-none border font-mono',
         variantStyles[variant] || variantStyles.default,
         className
       )}

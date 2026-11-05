@@ -19,15 +19,15 @@ export function BoardColumn({ id, title, tasks, onAddTask, isPM, currentUserId }
   return (
     <div className="flex-shrink-0 w-72 sm:w-80 flex flex-col">
       {/* Column Header */}
-      <div className="flex items-center justify-between mb-2.5 px-1 select-none">
-        <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+      <div className="flex items-center justify-between mb-2 px-1 select-none">
+        <h3 className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2 text-foreground">
           {title}
-          <span className="text-[11px] font-mono text-muted-foreground bg-secondary/80 border border-border/50 font-semibold rounded-full px-2 py-0.5">
+          <span className="text-[10px] font-mono text-muted-foreground bg-secondary border border-border font-medium rounded-sm px-1.5 py-0.2">
             {tasks.length}
           </span>
           {id === 'done' && !isPM && (
             <span
-              className="text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded flex items-center gap-1"
+              className="text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-sm flex items-center gap-1"
               title="Compliance Rule: Only Project Managers can approve and close tickets into Done"
             >
               <Lock className="w-2.5 h-2.5" /> PM Only
@@ -38,25 +38,25 @@ export function BoardColumn({ id, title, tasks, onAddTask, isPM, currentUserId }
           onClick={onAddTask}
           aria-label={`Add new task to ${title}`}
           title={`Add task to ${title}`}
-          className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          className="p-1 rounded-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-3.5 h-3.5" />
         </button>
       </div>
 
-      {/* Internal scrollable task list: fixes the endless vertical expansion */}
+      {/* Internal scrollable task list */}
       <div
         ref={setNodeRef}
         className={cn(
-          'rounded-xl p-2.5 min-h-[260px] max-h-[calc(100vh-330px)] overflow-y-auto space-y-2.5 transition-colors border border-border/60 scrollbar-none shadow-xs',
-          isOver ? 'bg-primary/5 ring-2 ring-primary/30 border-primary/40' : 'bg-secondary/20'
+          'rounded-md p-2 min-h-[260px] max-h-[calc(100vh-330px)] overflow-y-auto space-y-2 transition-colors border border-border scrollbar-none shadow-2xs',
+          isOver ? 'bg-primary/5 border-primary/50' : 'bg-secondary/20'
         )}
       >
         {tasks.map((task) => (
           <TaskCard key={task._id} task={task} isPM={isPM} currentUserId={currentUserId} />
         ))}
         {tasks.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed border-border/40 rounded-lg">
+          <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed border-border rounded-md">
             <p className="text-xs text-muted-foreground">No tasks in {title.toLowerCase()}</p>
           </div>
         )}

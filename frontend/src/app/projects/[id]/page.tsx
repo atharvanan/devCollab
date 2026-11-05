@@ -26,6 +26,9 @@ import {
   ShieldCheck,
   ArrowRightLeft,
   Sliders,
+  FolderKanban,
+  GitPullRequest,
+  Code2,
 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { apiClient } from '@/lib/apiClient';
@@ -61,6 +64,7 @@ export default function ProjectDetailPage() {
   const { toast } = useToast();
 
   const [activeSession, setActiveSession] = useState<any>(null);
+  const [viewAllRooms, setViewAllRooms] = useState(false);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('frontend_developer');
@@ -350,104 +354,110 @@ export default function ProjectDetailPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Top Breadcrumb & Title */}
-        <div>
-          <Link
-            href="/projects"
-            className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground mb-3 transition-colors"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back to Projects
-          </Link>
+        {/* Top Breadcrumb & Clean GitHub/Jira-style Header */}
+        <div className="space-y-3 pb-2">
+          {/* Breadcrumb */}
+          <nav className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Link
+              href="/projects"
+              className="hover:text-foreground transition-colors font-medium"
+            >
+              Projects
+            </Link>
+            <span className="text-muted-foreground/60">/</span>
+            <span className="text-foreground font-semibold truncate max-w-xs">{project?.name}</span>
+          </nav>
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
+          {/* Project Title & Action Bar */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="space-y-1.5 min-w-0">
               <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground truncate">
                   {project?.name}
                 </h1>
-                {project?.visibility === 'private' ? (
-                  <span title="Private project">
-                    <Lock className="w-4 h-4 text-muted-foreground" />
-                  </span>
-                ) : (
-                  <span title="Public project">
-                    <Globe className="w-4 h-4 text-muted-foreground" />
-                  </span>
-                )}
 
-                {/* Project Status Badge */}
+                {/* Visibility Badge */}
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-muted text-muted-foreground border border-border">
+                  {project?.visibility === 'private' ? (
+                    <>
+                      <Lock className="w-3 h-3" /> Private
+                    </>
+                  ) : (
+                    <>
+                      <Globe className="w-3 h-3" /> Public
+                    </>
+                  )}
+                </span>
+
+                {/* Status Badge */}
                 {project?.status === 'completed' && (
-                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Completed
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
+                    <CheckCircle2 className="w-3 h-3" /> Completed
                   </span>
                 )}
                 {project?.status === 'on_hold' && (
-                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1">
-                    <PauseCircle className="w-3.5 h-3.5" /> On Hold
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                    <PauseCircle className="w-3 h-3" /> On Hold
                   </span>
                 )}
                 {project?.status === 'archived' && (
-                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border flex items-center gap-1">
-                    <Archive className="w-3.5 h-3.5" /> Archived
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-muted text-muted-foreground border border-border">
+                    <Archive className="w-3 h-3" /> Archived
                   </span>
                 )}
                 {(!project?.status || project?.status === 'active') && (
-                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Active
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Active
                   </span>
                 )}
-
-                {/* Project Owner Badge */}
-                <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1">
-                  <Crown className="w-3.5 h-3.5 text-amber-500" /> Owner: {project?.owner?.name || 'Owner'}
-                </span>
-
-                {/* User Active Role Badge */}
-                <span
-                  className={cn(
-                    'text-xs font-semibold px-2.5 py-0.5 rounded-full border shadow-xs',
-                    ROLE_COLORS[userRole] || 'bg-secondary text-secondary-foreground'
-                  )}
-                  title="Your assigned role on this project"
-                >
-                  Your Role: {ROLE_LABELS[userRole] || userRole}
-                </span>
               </div>
-              <p className="text-muted-foreground text-sm mt-1">
-                {project?.description || 'No description provided'}
-              </p>
+
+              {/* Clean Metadata Line (GitHub/Jira style) */}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                {project?.description && (
+                  <span className="text-foreground/80 font-normal">{project.description}</span>
+                )}
+                {project?.description && <span className="text-muted-foreground/40">•</span>}
+                <span>
+                  Owner: <strong className="text-foreground font-medium">{project?.owner?.name || 'Owner'}</strong>
+                </span>
+                <span className="text-muted-foreground/40">•</span>
+                <span>
+                  Your Role: <strong className="text-foreground font-medium">{ROLE_LABELS[userRole] || userRole}</strong>
+                </span>
+                <span className="text-muted-foreground/40">•</span>
+                <span>{project?.members?.length || 1} member{project?.members?.length !== 1 ? 's' : ''}</span>
+              </div>
             </div>
 
-            {/* Governance Actions for PM & Owner */}
+            {/* Governance Action Buttons - Clean Jira / GitHub button group */}
             {isPM && (
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap shrink-0">
+                <Button size="sm" onClick={() => setInviteModalOpen(true)}>
+                  <UserPlus className="w-3.5 h-3.5 mr-1.5" /> Invite Member
+                </Button>
+
                 {isOwner && (
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => setTransferModalOpen(true)}
-                    className="border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
-                    title="Transfer project ownership to another active member"
+                    title="Transfer project ownership"
                   >
-                    <ArrowRightLeft className="w-4 h-4 mr-1.5" /> Transfer Ownership
+                    <ArrowRightLeft className="w-3.5 h-3.5 mr-1.5" /> Transfer Ownership
                   </Button>
                 )}
 
-                <Button size="sm" variant="outline" onClick={() => setInviteModalOpen(true)}>
-                  <UserPlus className="w-4 h-4 mr-1.5" /> Invite Member
-                </Button>
-
-                {/* Project Lifecycle Actions */}
+                {/* Status Toggle Actions */}
                 {project?.status !== 'completed' && (
                   <Button
                     size="sm"
                     variant="outline"
                     loading={statusUpdating}
                     onClick={() => handleStatusChange('completed')}
-                    className="border-sky-500/30 text-sky-600 dark:text-sky-400 hover:bg-sky-500/10"
-                    title="Mark project as finished and completed"
+                    title="Mark project completed"
                   >
-                    <CheckCircle2 className="w-4 h-4 mr-1.5" /> Finish
+                    <CheckCircle2 className="w-3.5 h-3.5 mr-1.5 text-sky-500" /> Finish
                   </Button>
                 )}
 
@@ -457,10 +467,9 @@ export default function ProjectDetailPage() {
                     variant="outline"
                     loading={statusUpdating}
                     onClick={() => handleStatusChange('on_hold')}
-                    className="border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
-                    title="Put project temporarily on hold"
+                    title="Put project on hold"
                   >
-                    <PauseCircle className="w-4 h-4 mr-1.5" /> On Hold
+                    <PauseCircle className="w-3.5 h-3.5 mr-1.5 text-amber-500" /> On Hold
                   </Button>
                 )}
 
@@ -470,10 +479,9 @@ export default function ProjectDetailPage() {
                     variant="outline"
                     loading={statusUpdating}
                     onClick={() => handleStatusChange('active')}
-                    className="border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
-                    title="Resume active project development"
+                    title="Resume active project"
                   >
-                    <PlayCircle className="w-4 h-4 mr-1.5" /> Resume
+                    <PlayCircle className="w-3.5 h-3.5 mr-1.5 text-emerald-500" /> Resume
                   </Button>
                 )}
 
@@ -484,7 +492,7 @@ export default function ProjectDetailPage() {
                     className="border-destructive/30 text-destructive hover:bg-destructive/10"
                     onClick={() => setDeleteModalOpen(true)}
                   >
-                    <Trash2 className="w-4 h-4 mr-1.5" /> Delete
+                    <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Delete
                   </Button>
                 )}
               </div>
@@ -492,50 +500,47 @@ export default function ProjectDetailPage() {
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex border-b border-border/80 gap-6 overflow-x-auto pb-px">
+        {/* Tab Navigation - GitHub Repository Tabs Style */}
+        <div className="flex border-b border-border gap-1 overflow-x-auto">
           {[
-            { key: 'board', label: 'Kanban Board' },
-            { key: 'reviews', label: 'Code Reviews' },
-            {
-              key: 'collab',
-              label: (
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  Live Pair-Coding
-                </span>
-              ),
-            },
+            { key: 'board', label: 'Kanban Board', icon: FolderKanban },
+            { key: 'reviews', label: 'Code Reviews', icon: GitPullRequest },
+            { key: 'collab', label: 'Pair-Coding', icon: Code2 },
             {
               key: 'members',
-              label: `Team Members (${project?.members?.length || 0})`,
+              label: 'Team Members',
+              icon: Users,
+              count: project?.members?.length || 0,
             },
             {
               key: 'compliance',
-              label: (
-                <span className="flex items-center gap-1.5">
-                  <Shield className="w-3.5 h-3.5 text-primary" />
-                  Security & Compliance
-                </span>
-              ),
+              label: 'Security & Compliance',
+              icon: ShieldCheck,
             },
-          ].map((item) => (
-            <button
-              key={item.key}
-              onClick={() => setTab(item.key as any)}
-              className={cn(
-                'pb-3 text-sm font-semibold transition-colors relative whitespace-nowrap cursor-pointer',
-                tab === item.key
-                  ? 'text-primary'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              {item.label}
-              {tab === item.key && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t" />
-              )}
-            </button>
-          ))}
+          ].map((item) => {
+            const Icon = item.icon;
+            const active = tab === item.key;
+            return (
+              <button
+                key={item.key}
+                onClick={() => setTab(item.key as any)}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-2 text-xs sm:text-sm font-medium border-b-2 -mb-px transition-colors cursor-pointer whitespace-nowrap select-none',
+                  active
+                    ? 'border-primary text-foreground font-semibold'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                )}
+              >
+                <Icon className={cn('w-4 h-4', active ? 'text-primary' : 'text-muted-foreground')} />
+                <span>{item.label}</span>
+                {item.count !== undefined && (
+                  <span className="ml-1 px-1.5 py-0.2 rounded-full bg-muted text-[11px] font-mono text-muted-foreground font-semibold">
+                    {item.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Tab 0: Kanban Board */}
@@ -547,49 +552,92 @@ export default function ProjectDetailPage() {
         {/* Tab 2: Live Pair-Coding Session */}
         {tab === 'collab' && (
           <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card border border-border rounded-xl p-4">
-              <div>
-                <h3 className="font-semibold text-sm text-foreground">
-                  Real-Time Pair Programming Session
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Multi-cursor code editor with syntax execution and inline discussion room.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <CollabSessionsList
-                  projectId={id}
-                  sessions={collabSessions}
-                  activeSessionId={activeSession?._id}
-                  onSelectSession={(s) => setActiveSession(s)}
-                  onSessionCreated={(newSession) => {
-                    refetchCollab();
-                    setActiveSession(newSession);
-                  }}
-                />
-              </div>
-            </div>
+            {(!activeSession || viewAllRooms) ? (
+              <CollabSessionsList
+                projectId={id}
+                sessions={collabSessions}
+                activeSessionId={activeSession?._id}
+                onSelectSession={(s) => {
+                  setActiveSession(s);
+                  setViewAllRooms(false);
+                }}
+                onSessionCreated={(newSession) => {
+                  refetchCollab();
+                  setActiveSession(newSession);
+                  setViewAllRooms(false);
+                }}
+                onSessionDeleted={(delId) => {
+                  refetchCollab();
+                  if (activeSession?._id === delId) {
+                    setActiveSession(null);
+                  }
+                }}
+                isPM={isPM}
+              />
+            ) : (
+              <div className="space-y-3">
+                {/* Clean Top Workspace Bar */}
+                <div className="flex flex-wrap items-center justify-between gap-3 px-3.5 py-2 bg-card border border-border rounded-md text-xs">
+                  <div className="flex items-center gap-2.5">
+                    <Code2 className="w-4 h-4 text-primary shrink-0" />
+                    <span className="font-semibold text-foreground text-sm">{activeSession.title}</span>
+                    <span className="px-1.5 py-0.5 rounded-sm text-[10px] uppercase font-mono font-medium border border-border bg-secondary text-secondary-foreground">
+                      {activeSession.language}
+                    </span>
+                    {collabSessions.length > 1 && (
+                      <div className="flex items-center gap-1.5 pl-2 border-l border-border">
+                        <span className="text-muted-foreground text-xs">Switch:</span>
+                        <select
+                          value={activeSession._id}
+                          onChange={(e) => {
+                            const s = collabSessions.find((item: any) => item._id === e.target.value);
+                            if (s) setActiveSession(s);
+                          }}
+                          className="bg-background border border-border rounded-md px-2 py-1 text-xs text-foreground focus:outline-none"
+                        >
+                          {collabSessions.map((s: any) => (
+                            <option key={s._id} value={s._id}>
+                              {s.title}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
 
-            {activeSession && (
-              <div className="rounded-xl border border-border overflow-hidden bg-card shadow-sm">
-                <CollaborativeEditor
-                  session={activeSession}
-                  sessionId={activeSession._id}
-                  project={project}
-                  projectId={id}
-                  onSessionUpdated={(updated) => {
-                    setActiveSession(updated);
-                    refetchCollab();
-                  }}
-                  onExportToReview={() => {
-                    refetchCollab();
-                    setTab('reviews');
-                  }}
-                  onReviewCreated={() => {
-                    refetchCollab();
-                    setTab('reviews');
-                  }}
-                />
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setViewAllRooms(true)}
+                      className="text-xs h-7 px-2.5 rounded-md"
+                    >
+                      All Rooms ({collabSessions.length})
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Collaborative Editor */}
+                <div className="rounded-md border border-border overflow-hidden bg-card shadow-xs">
+                  <CollaborativeEditor
+                    session={activeSession}
+                    sessionId={activeSession._id}
+                    project={project}
+                    projectId={id}
+                    onSessionUpdated={(updated) => {
+                      setActiveSession(updated);
+                      refetchCollab();
+                    }}
+                    onExportToReview={() => {
+                      refetchCollab();
+                      setTab('reviews');
+                    }}
+                    onReviewCreated={() => {
+                      refetchCollab();
+                      setTab('reviews');
+                    }}
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -859,24 +907,24 @@ export default function ProjectDetailPage() {
             onClick={() => setTransferModalOpen(false)}
           >
             <div
-              className="bg-card border border-amber-500/30 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl"
+              className="bg-card border border-border rounded-md w-full max-w-md p-5 space-y-4 shadow-xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
-                    <Crown className="w-5 h-5" />
+                  <div className="w-8 h-8 rounded-md bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 border border-amber-500/20">
+                    <Crown className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-lg text-foreground">Transfer Ownership</h3>
+                    <h3 className="font-semibold text-base text-foreground">Transfer Ownership</h3>
                     <p className="text-xs text-muted-foreground">Appoint a new Project Owner</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setTransferModalOpen(false)}
-                  className="p-1 rounded-lg text-muted-foreground hover:text-foreground"
+                  className="p-1 rounded-md text-muted-foreground hover:text-foreground"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
@@ -885,7 +933,7 @@ export default function ProjectDetailPage() {
                 You will retain your Project Manager role. Projects can never be ownerless.
               </p>
 
-              <form onSubmit={handleTransferOwnership} className="space-y-4 pt-1">
+              <form onSubmit={handleTransferOwnership} className="space-y-3.5 pt-1">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-foreground">
                     Select New Owner (Active Members Only)
@@ -894,7 +942,7 @@ export default function ProjectDetailPage() {
                     value={transferTargetId}
                     onChange={(e) => setTransferTargetId(e.target.value)}
                     required
-                    className="w-full text-xs rounded-lg border border-border px-3 py-2 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full text-xs rounded-md border border-border px-3 py-2 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
                   >
                     <option value="">-- Choose Member --</option>
                     {otherMembersForTransfer?.map((m: any) => {
@@ -916,11 +964,11 @@ export default function ProjectDetailPage() {
                     placeholder="e.g. Lead transition for Sprint 4 release"
                     value={transferReason}
                     onChange={(e) => setTransferReason(e.target.value)}
-                    className="text-xs"
+                    className="text-xs rounded-md"
                   />
                 </div>
 
-                <div className="flex items-center justify-end gap-2.5 pt-2">
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
                   <Button type="button" variant="outline" size="sm" onClick={() => setTransferModalOpen(false)}>
                     Cancel
                   </Button>
@@ -945,28 +993,28 @@ export default function ProjectDetailPage() {
             onClick={() => setInviteModalOpen(false)}
           >
             <div
-              className="bg-card border border-border rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl"
+              className="bg-card border border-border rounded-md w-full max-w-md p-5 space-y-4 shadow-xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                    <UserPlus className="w-5 h-5" />
+                  <div className="w-8 h-8 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
+                    <UserPlus className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-lg text-foreground">Invite Project Member</h3>
+                    <h3 className="font-semibold text-base text-foreground">Invite Project Member</h3>
                     <p className="text-xs text-muted-foreground">Assign engineering role</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setInviteModalOpen(false)}
-                  className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent"
+                  className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <form onSubmit={handleInviteSubmit} className="space-y-4 pt-1">
+              <form onSubmit={handleInviteSubmit} className="space-y-3.5 pt-1">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-foreground">Email Address</label>
                   <Input
@@ -974,6 +1022,7 @@ export default function ProjectDetailPage() {
                     placeholder="developer@company.com"
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
+                    className="rounded-md"
                     required
                   />
                 </div>
@@ -983,7 +1032,7 @@ export default function ProjectDetailPage() {
                   <select
                     value={inviteRole}
                     onChange={(e) => setInviteRole(e.target.value)}
-                    className="w-full text-xs rounded-lg border border-border px-3 py-2 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full text-xs rounded-md border border-border px-3 py-2 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
                   >
                     {ROLE_OPTIONS.map((opt) => (
                       <option
@@ -997,9 +1046,14 @@ export default function ProjectDetailPage() {
                   </select>
                 </div>
 
-                <Button type="submit" className="w-full" loading={inviting}>
-                  Invite & Assign Role
-                </Button>
+                <div className="pt-2 border-t border-border flex items-center justify-end gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setInviteModalOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" size="sm" loading={inviting}>
+                    Invite & Assign Role
+                  </Button>
+                </div>
               </form>
             </div>
           </div>
@@ -1012,15 +1066,15 @@ export default function ProjectDetailPage() {
             onClick={() => setDeleteModalOpen(false)}
           >
             <div
-              className="bg-card border border-destructive/30 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl"
+              className="bg-card border border-destructive/30 rounded-md w-full max-w-md p-5 space-y-4 shadow-xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
-                  <AlertTriangle className="w-5 h-5" />
+                <div className="w-8 h-8 rounded-md bg-destructive/10 text-destructive flex items-center justify-center shrink-0 border border-destructive/20">
+                  <AlertTriangle className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg text-foreground">Delete Project</h3>
+                  <h3 className="font-semibold text-base text-foreground">Delete Project</h3>
                   <p className="text-xs text-muted-foreground">This action is irreversible.</p>
                 </div>
               </div>
@@ -1030,7 +1084,7 @@ export default function ProjectDetailPage() {
                 All associated Kanban tasks, code reviews, collaborative pair-coding sessions, and security audits will be permanently removed.
               </p>
 
-              <div className="flex items-center justify-end gap-2.5 pt-2">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
                 <Button variant="outline" size="sm" onClick={() => setDeleteModalOpen(false)}>
                   Cancel
                 </Button>

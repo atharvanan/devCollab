@@ -39,25 +39,25 @@ export function Sidebar() {
         sidebarOpen ? 'w-60' : 'w-16'
       )}
     >
-      {/* Brand Header */}
+      {/* Brand Header - Fixed height, perfectly aligned */}
       <Link
         href="/dashboard"
         className={cn(
-          'flex items-center gap-3.5 px-4 py-4.5 border-b border-border/70 group hover:bg-accent/30 transition-colors',
-          !sidebarOpen && 'justify-center px-2'
+          'h-14 px-4 border-b border-border flex items-center gap-3 shrink-0 group hover:bg-accent/40 transition-colors select-none',
+          !sidebarOpen && 'justify-center px-0'
         )}
         title="DevCollab Workspace"
       >
-        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+        <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center shrink-0 shadow-xs text-primary-foreground group-hover:opacity-95 transition-opacity">
           <Code2 className="w-4.5 h-4.5 text-white" />
         </div>
         {sidebarOpen && (
-          <div className="min-w-0">
-            <span className="font-bold text-sm tracking-tight text-foreground block leading-none">
+          <div className="min-w-0 flex flex-col justify-center">
+            <span className="font-semibold text-sm tracking-tight text-foreground leading-tight">
               DevCollab
             </span>
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold block mt-1">
-              Engineering Workspace
+            <span className="text-[11px] text-muted-foreground font-normal leading-tight">
+              Workspace
             </span>
           </div>
         )}

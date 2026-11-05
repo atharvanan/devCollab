@@ -352,7 +352,7 @@ describe('Security & Vulnerability Remediation Suite (SEC-001 to SEC-020, D-01 t
 
     it('SEC-020: Disables seed-bots route permanently (returns 404)', async () => {
       const res = await request(app)
-        .post(`/api/v1/projects/${project._id}/seed-bots`)
+        .post(`/api/v1/projects/${privateProject._id}/seed-bots`)
         .set('Authorization', `Bearer ${aliceToken}`);
 
       expect(res.status).toBe(404);

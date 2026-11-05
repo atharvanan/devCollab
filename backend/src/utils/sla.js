@@ -102,7 +102,6 @@ function evaluateTaskSla(task) {
 
   // 1. Response SLA
   let responseBreached = Boolean(task.sla?.responseBreached);
-  let responseRemainingMs = responseDeadline.getTime() - (task.startedAt ? new Date(task.startedAt).getTime() : now.getTime());
 
   if (!isStarted && now > responseDeadline) {
     responseBreached = true;

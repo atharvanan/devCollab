@@ -129,6 +129,17 @@ exports.updateProject = catchAsync(async (req, res) => {
   }
   const allowed = ['name', 'description', 'visibility', 'tags'];
   allowed.forEach((k) => { if (req.body[k] !== undefined) project[k] = req.body[k]; });
+  if (req.body.status !== undefined) {
+    if (['active', 'on_hold', 'completed'].includes(req.body.status)) {
+      project.status = req.body.status;
+    } else if (req.body.status === 'archived') {
+      if (project.isOwner(req.user._id) || req.user.role === 'admin') {
+        project.status = 'archived';
+      } else {
+        throw new AppError('Only the Project Owner can archive a project', 403);
+      }
+    }
+  }
   await project.save();
   await project.populate('owner', 'name email avatar');
   await project.populate('members.user', 'name email avatar');
@@ -183,7 +194,9 @@ exports.deleteProject = catchAsync(async (req, res) => {
   try {
     const { getIO } = require('../socket');
     getIO().to(`project:${projectId}`).emit('project:deleted', { projectId });
-  } catch (_) {}
+  } catch (_) {
+    // Non-blocking socket notification error
+  }
 
   res.json({ success: true, message: 'Project and all associated resources deleted successfully' });
 });
@@ -274,7 +287,9 @@ exports.transferOwnership = catchAsync(async (req, res) => {
       newOwner: project.owner,
       transferredBy: req.user._id,
     });
-  } catch (_) {}
+  } catch (_) {
+    // Non-blocking socket notification error
+  }
 
   res.json({
     success: true,
@@ -528,7 +543,9 @@ exports.inviteMember = catchAsync(async (req, res) => {
       data: { projectId: project._id },
     });
     getIO().to(`user:${invitee._id}`).emit('notification:new', { type: 'project_invitation' });
-  } catch (_) {}
+  } catch (_) {
+    // Non-blocking socket notification error
+  }
 
   res.json({ success: true, message: `Member added as ${ROLE_DISPLAY_NAMES[role] || role}`, data: { project } });
 });
@@ -723,7 +740,7 @@ exports.resolveSecurityAudit = catchAsync(async (req, res) => {
   const project = await Project.findById(projectId);
   if (!project) throw new AppError('Project not found', 404);
   if (!project.isProjectManager(req.user._id) && req.user.role !== 'admin') {
-    throw new AppError('Only Project Managers or Platform Admins can acknowledge security violations', 403);
+    throw new AppError('Only Project Managers can acknowledge security violations', 403);
   }
 
   const audit = await SecurityAudit.findOne({ _id: auditId, project: projectId });

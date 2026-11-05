@@ -1,6 +1,5 @@
 const Task = require('../models/Task');
 const Project = require('../models/Project');
-const User = require('../models/User');
 const Notification = require('../models/Notification');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
@@ -603,7 +602,9 @@ exports.addTaskComment = catchAsync(async (req, res) => {
 
   try {
     getIO().to(`project:${task.project}`).emit('task:updated', task);
-  } catch (e) {}
+  } catch (e) {
+    // Non-blocking socket notification error
+  }
 
   // Notify assignees and PM if someone else commented
   const recipients = new Set();
@@ -627,7 +628,9 @@ exports.addTaskComment = catchAsync(async (req, res) => {
       notifications.forEach((n) => {
         getIO().to(`user:${n.recipient}`).emit('notification:new', { type: 'task_comment' });
       });
-    } catch (e) {}
+    } catch (e) {
+      // Non-blocking notification emission error
+    }
   }
 
   res.status(201).json({

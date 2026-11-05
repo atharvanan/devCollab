@@ -10,7 +10,7 @@ beforeAll(async () => {
   await User.deleteMany({});
   await Project.deleteMany({});
 
-  const user = await User.create({ name: 'Project Tester', email: 'proj@test.com', password: 'Password123', isVerified: true });
+  const user = await User.create({ name: 'Project Tester', email: 'proj@test.com', password: 'Password123', isVerified: true, canCreateProjects: true });
   userId = user._id;
   const res = await request(app).post('/api/v1/auth/login').send({ email: 'proj@test.com', password: 'Password123' });
   token = res.body.data.accessToken;

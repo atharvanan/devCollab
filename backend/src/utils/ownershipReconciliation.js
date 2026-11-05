@@ -1,7 +1,6 @@
 const Project = require('../models/Project');
 const User = require('../models/User');
 const { logGovernanceAudit } = require('./auditLogger');
-const logger = require('./logger');
 
 /**
  * Reconciles project ownership across all projects in the workspace safely and non-destructively.

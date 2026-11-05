@@ -393,26 +393,12 @@ describe('QA End-to-End & Edge Cases Test Suite', () => {
       expect(deletedProj).toBeNull();
     });
 
-    it('TEST BOTS: Can seed multi-role test bots to project and verify bot login', async () => {
+    it('COMMERCIAL SECURITY: seed-bots route is permanently disabled (HTTP 404)', async () => {
       const res = await request(app)
         .post(`/api/v1/projects/${project._id}/seed-bots`)
         .set('Authorization', `Bearer ${pmToken}`);
 
-      expect(res.status).toBe(200);
-      expect(res.body.success).toBe(true);
-      expect(res.body.data.bots.length).toBe(7);
-
-      // Verify a bot can login with their credentials
-      const loginRes = await request(app)
-        .post('/api/v1/auth/login')
-        .send({
-          email: 'alex.frontend@devcollab.com',
-          password: 'DevCollab123!',
-        });
-
-      expect(loginRes.status).toBe(200);
-      expect(loginRes.body.data.accessToken).toBeDefined();
-      expect(loginRes.body.data.devOtp).toBeUndefined(); // devOtp should not leak!
+      expect(res.status).toBe(404);
     });
 
     it('SECURITY: Forgot password does NOT leak devOtp in response', async () => {

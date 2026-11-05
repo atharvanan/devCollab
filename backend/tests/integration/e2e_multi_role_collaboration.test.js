@@ -58,16 +58,16 @@ describe('E2E Multi-Role Bot Collaboration & Communication System', () => {
 
     // 1. Create Project Manager
     pmUser = await User.create({
-      name: 'Atharva PM',
-      email: 'atharva.pm@devcollab.com',
-      password: 'Password123',
+      name: 'Engineering Director',
+      email: 'director@devcollab.com',
+      password: 'Password123!',
       isVerified: true,
       role: 'admin',
     });
 
     const loginRes = await request(app).post('/api/v1/auth/login').send({
-      email: 'atharva.pm@devcollab.com',
-      password: 'Password123',
+      email: 'director@devcollab.com',
+      password: 'Password123!',
     });
     pmToken = loginRes.body.data.accessToken;
 
@@ -82,18 +82,39 @@ describe('E2E Multi-Role Bot Collaboration & Communication System', () => {
     testProject = projRes.body.data.project;
   });
 
+  async function ensureTeamMembers() {
+    for (const b of BOTS) {
+      let u = await User.findOne({ email: b.email });
+      if (!u) {
+        u = await User.create({
+          name: b.name,
+          email: b.email,
+          password: 'Password123!',
+          isVerified: true,
+          role: 'user',
+        });
+      }
+      const isMem = testProject.members?.some((m) => (m.user?._id || m.user)?.toString() === u._id.toString());
+      if (!isMem) {
+        await request(app)
+          .post(`/api/v1/projects/${testProject._id}/invite`)
+          .set('Authorization', `Bearer ${pmToken}`)
+          .send({ email: b.email, role: b.role });
+      }
+      const login = await request(app).post('/api/v1/auth/login').send({
+        email: b.email,
+        password: 'Password123!',
+      });
+      botTokens[b.role] = login.body.data.accessToken;
+      botUsers[b.role] = login.body.data.user;
+    }
+  }
+
   // =========================================================================
   // SUITE 1: Bot Team Seeding & Multi-Role Authentication Verification
   // =========================================================================
   it('1. Seeds 5 engineering role bots and verifies all bots authenticate with valid JWTs', async () => {
-    // Seed bots into project
-    const seedRes = await request(app)
-      .post(`/api/v1/projects/${testProject._id}/seed-bots`)
-      .set('Authorization', `Bearer ${pmToken}`);
-
-    expect(seedRes.status).toBe(200);
-    expect(seedRes.body.success).toBe(true);
-    expect(seedRes.body.data.bots.length).toBe(7);
+    await ensureTeamMembers();
 
     // Verify Project Membership (1 PM owner + 7 seeded bots = 8 total members)
     const updatedProj = await Project.findById(testProject._id).populate('members.user');
@@ -101,21 +122,11 @@ describe('E2E Multi-Role Bot Collaboration & Communication System', () => {
 
     // Test login for EVERY bot role
     for (const b of BOTS) {
-      const login = await request(app).post('/api/v1/auth/login').send({
-        email: b.email,
-        password: 'DevCollab123!',
-      });
-
-      expect(login.status).toBe(200);
-      expect(login.body.success).toBe(true);
-      expect(login.body.data.accessToken).toBeDefined();
-      expect(login.body.data.user.email).toBe(b.email);
-
-      botTokens[b.role] = login.body.data.accessToken;
-      botUsers[b.role] = login.body.data.user;
+      expect(botTokens[b.role]).toBeDefined();
+      expect(botUsers[b.role].email).toBe(b.email);
 
       // Role check in project
-      const roleInProject = updatedProj.getUserRole(login.body.data.user._id);
+      const roleInProject = updatedProj.getUserRole(botUsers[b.role]._id);
       expect(roleInProject).toBe(b.role);
     }
   });
@@ -124,20 +135,7 @@ describe('E2E Multi-Role Bot Collaboration & Communication System', () => {
   // SUITE 2: Kanban Board Multi-Role Collaboration, Comments & Review Cycle
   // =========================================================================
   it('2. Multi-role bots collaborate on Kanban tickets with notes, comments, and PM sign-off', async () => {
-    // Seed bots
-    await request(app)
-      .post(`/api/v1/projects/${testProject._id}/seed-bots`)
-      .set('Authorization', `Bearer ${pmToken}`);
-
-    // Log in bots
-    for (const b of BOTS) {
-      const login = await request(app).post('/api/v1/auth/login').send({
-        email: b.email,
-        password: 'DevCollab123!',
-      });
-      botTokens[b.role] = login.body.data.accessToken;
-      botUsers[b.role] = login.body.data.user;
-    }
+    await ensureTeamMembers();
 
     // Step A: PM creates tickets targeted for different roles
     const frontendTaskRes = await request(app)
@@ -262,22 +260,11 @@ describe('E2E Multi-Role Bot Collaboration & Communication System', () => {
   // SUITE 3: Real-Time Pair-Coding Studio, Live Chat & JSX Export
   // =========================================================================
   it('3. Real-time pair-coding session with live socket sync, team chat messages, and JSX export', async () => {
-    // Seed bots & login
-    await request(app)
-      .post(`/api/v1/projects/${testProject._id}/seed-bots`)
-      .set('Authorization', `Bearer ${pmToken}`);
+    // Ensure team members & login
+    await ensureTeamMembers();
 
-    const loginAlex = await request(app).post('/api/v1/auth/login').send({
-      email: 'alex.frontend@devcollab.com',
-      password: 'DevCollab123!',
-    });
-    const alexToken = loginAlex.body.data.accessToken;
-
-    const loginSarah = await request(app).post('/api/v1/auth/login').send({
-      email: 'sarah.backend@devcollab.com',
-      password: 'DevCollab123!',
-    });
-    const sarahToken = loginSarah.body.data.accessToken;
+    const alexToken = botTokens['frontend_developer'];
+    const sarahToken = botTokens['backend_developer'];
 
     // Step A: Get or scaffold collaborative session
     const sessionRes = await request(app)
@@ -383,22 +370,11 @@ export function UserDashboard({ user, stats }) {
   // SUITE 4: Code Review Communication, Line Comments & Approval Loop
   // =========================================================================
   it('4. Multi-role bots collaborate on Code Reviews with inline line comments and approval', async () => {
-    // Seed bots & login
-    await request(app)
-      .post(`/api/v1/projects/${testProject._id}/seed-bots`)
-      .set('Authorization', `Bearer ${pmToken}`);
+    // Ensure team members & login
+    await ensureTeamMembers();
 
-    const loginAlex = await request(app).post('/api/v1/auth/login').send({
-      email: 'alex.frontend@devcollab.com',
-      password: 'DevCollab123!',
-    });
-    const alexToken = loginAlex.body.data.accessToken;
-
-    const loginDavid = await request(app).post('/api/v1/auth/login').send({
-      email: 'david.qa@devcollab.com',
-      password: 'DevCollab123!',
-    });
-    const davidToken = loginDavid.body.data.accessToken;
+    const alexToken = botTokens['frontend_developer'];
+    const davidToken = botTokens['qa_tester'];
 
     // Alex creates a code review
     const reviewRes = await request(app)

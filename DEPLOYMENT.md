@@ -89,3 +89,4 @@ In the Vercel project configuration, set:
    Log in at `https://<your-vercel-app>.vercel.app/login` using your configured administrator credentials (`admin@devcollab.com` / `SecureAdminPass2026!`).
 3. **Real-time Live Chat & Pair Programming**:
    Create a project, invite a teammate, and test the real-time collaborative coding studio with synchronized chat.
+

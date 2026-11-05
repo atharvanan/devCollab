@@ -60,7 +60,9 @@ exports.createReview = catchAsync(async (req, res) => {
       try {
         await Review.collection.dropIndexes();
         await Review.syncIndexes();
-      } catch (e) {}
+      } catch (e) {
+        // Non-blocking index sync fallback
+      }
       review = await Review.create(reviewPayload);
     } else {
       throw err;
@@ -70,7 +72,9 @@ exports.createReview = catchAsync(async (req, res) => {
 
   try {
     getIO().to(`project:${projectId}`).emit('review:created', review);
-  } catch (e) {}
+  } catch (e) {
+    // Non-blocking socket notification error
+  }
   res.status(201).json({ success: true, data: { review } });
 });
 

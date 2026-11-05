@@ -143,7 +143,9 @@ exports.createSession = catchAsync(async (req, res) => {
 
   try {
     getIO().to(`project:${projectId}`).emit('collab:created', session);
-  } catch (err) {}
+  } catch (err) {
+    // Non-blocking socket notification error
+  }
 
   res.status(201).json({ success: true, data: { session } });
 });
@@ -254,7 +256,9 @@ exports.updateSessionCode = catchAsync(async (req, res) => {
       },
       author: { _id: req.user._id, name: req.user.name },
     });
-  } catch (err) {}
+  } catch (err) {
+    // Non-blocking socket notification error
+  }
 
   res.json({ success: true, data: { session } });
 });
@@ -307,7 +311,9 @@ exports.exportToReview = catchAsync(async (req, res) => {
       try {
         await Review.collection.dropIndexes();
         await Review.syncIndexes();
-      } catch (e) {}
+      } catch (e) {
+        // Non-blocking index sync fallback
+      }
       review = await Review.create(reviewPayload);
     } else {
       throw err;
@@ -330,12 +336,16 @@ exports.exportToReview = catchAsync(async (req, res) => {
 
     try {
       getIO().to(`user:${contributorId}`).emit('notification:new', { type: 'review_assigned' });
-    } catch (e) {}
+    } catch (e) {
+      // Non-blocking socket notification error
+    }
   }
 
   try {
     getIO().to(`project:${session.project}`).emit('review:created', review);
-  } catch (e) {}
+  } catch (e) {
+    // Non-blocking socket notification error
+  }
 
   res.status(201).json({
     success: true,
@@ -366,7 +376,9 @@ exports.deleteSession = catchAsync(async (req, res) => {
 
   try {
     getIO().to(`project:${session.project}`).emit('collab:deleted', { sessionId });
-  } catch (e) {}
+  } catch (e) {
+    // Non-blocking socket notification error
+  }
 
   res.json({ success: true, message: 'Collaborative session deleted' });
 });
@@ -405,7 +417,9 @@ exports.sendSessionMessage = catchAsync(async (req, res) => {
 
   try {
     getIO().to(`collab:${sessionId}`).emit('collab:chatMessage', messageItem);
-  } catch (e) {}
+  } catch (e) {
+    // Non-blocking socket notification error
+  }
 
   res.status(201).json({
     success: true,

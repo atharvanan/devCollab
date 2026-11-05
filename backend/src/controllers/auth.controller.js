@@ -38,8 +38,6 @@ exports.register = catchAsync(async (req, res) => {
 
     await sendOTPEmail(email, otp, user.name).catch(() => {});
 
-    const isDev = process.env.NODE_ENV !== 'production';
-
     return res.status(200).json({
       success: true,
       message: 'Account pending verification. A fresh OTP has been sent to your email.',
@@ -68,8 +66,6 @@ exports.register = catchAsync(async (req, res) => {
   });
 
   await sendOTPEmail(email, otp, name).catch(() => {});
-
-  const isDev = process.env.NODE_ENV !== 'production';
 
   res.status(201).json({
     success: true,
@@ -303,8 +299,6 @@ exports.forgotPassword = catchAsync(async (req, res) => {
   await user.save();
 
   await sendPasswordResetEmail(user.email, otp, user.name).catch(() => {});
-
-  const isDev = process.env.NODE_ENV !== 'production';
 
   res.status(200).json({
     success: true,

@@ -20,7 +20,7 @@ describe('Project Lifecycle & Cascading Integrity (PROJX-001 to PROJX-012)', () 
     await CollabSession.deleteMany({});
     await Notification.deleteMany({});
 
-    owner = await User.create({ name: 'Project Owner', email: 'owner@devcollab.com', password: 'Password123!', role: 'user', isVerified: true });
+    owner = await User.create({ name: 'Project Owner', email: 'owner@devcollab.com', password: 'Password123!', role: 'user', isVerified: true, canCreateProjects: true });
     member = await User.create({ name: 'Team Member', email: 'member@devcollab.com', password: 'Password123!', role: 'user', isVerified: true });
     invitee = await User.create({ name: 'Invitee Candidate', email: 'invitee@devcollab.com', password: 'Password123!', role: 'user', isVerified: true });
     stranger = await User.create({ name: 'Stranger Danger', email: 'stranger@external.com', password: 'Password123!', role: 'user', isVerified: true });
@@ -54,7 +54,8 @@ describe('Project Lifecycle & Cascading Integrity (PROJX-001 to PROJX-012)', () 
 
       expect(res.status).toBe(201);
       expect(res.body.data.project.name).toBe('FinTech Payment Microservice');
-      expect(res.body.data.project.owner.toString()).toBe(owner._id.toString());
+      const ownerId = (res.body.data.project.owner?._id || res.body.data.project.owner).toString();
+      expect(ownerId).toBe(owner._id.toString());
       projectId = res.body.data.project._id;
     });
 

@@ -2,21 +2,38 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from 'react-query';
 import Link from 'next/link';
-import { Plus, Search, Lock, Globe, FolderKanban } from 'lucide-react';
+import { Plus, Search, Lock, Globe, FolderKanban, ShieldCheck, Crown } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, Badge } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { apiClient } from '@/lib/apiClient';
 import { formatRelativeTime } from '@/lib/utils';
+import { useAppSelector } from '@/hooks/useRedux';
 
 export default function ProjectsPage() {
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'on_hold' | 'completed'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'on_hold' | 'completed' | 'archived'>('all');
+  const { user } = useAppSelector((s) => s.auth);
 
   useEffect(() => {
     document.title = 'Projects | DevCollab';
   }, []);
+
+  const { data: permissions } = useQuery('my-permissions', async () => {
+    try {
+      const res = await apiClient.get('/users/me/permissions');
+      return res.data.data;
+    } catch {
+      return null;
+    }
+  });
+
+  const canCreate = Boolean(
+    permissions?.canCreateProjects ||
+    user?.role === 'admin' ||
+    (user as any)?.canCreateProjects
+  );
 
   const { data, isLoading } = useQuery(['projects', search], async () => {
     const res = await apiClient.get(`/projects?${search ? `search=${encodeURIComponent(search)}` : ''}`);
@@ -36,14 +53,22 @@ export default function ProjectsPage() {
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Projects</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Manage your repositories, team members, and task boards.
+              Manage your engineering workspaces, role assignments, and governance.
             </p>
           </div>
-          <Link href="/projects/new" className="shrink-0">
-            <Button className="w-full sm:w-auto">
-              <Plus className="w-4 h-4" /> New Project
-            </Button>
-          </Link>
+          {canCreate ? (
+            <Link href="/projects/new" className="shrink-0">
+              <Button className="w-full sm:w-auto shadow-sm">
+                <Plus className="w-4 h-4 mr-1.5" /> New Project
+              </Button>
+            </Link>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="text-xs px-3 py-1.5 rounded-lg bg-secondary/80 text-muted-foreground border border-border flex items-center gap-1.5 font-medium">
+                <ShieldCheck className="w-3.5 h-3.5 text-muted-foreground/80" /> Member Account
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -59,7 +84,7 @@ export default function ProjectsPage() {
 
           {/* Status Filter Tabs */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-            {(['all', 'active', 'on_hold', 'completed'] as const).map((s) => (
+            {(['all', 'active', 'on_hold', 'completed', 'archived'] as const).map((s) => (
               <button
                 key={s}
                 onClick={() => setStatusFilter(s)}
@@ -107,6 +132,11 @@ export default function ProjectsPage() {
                               On Hold
                             </span>
                           )}
+                          {p.status === 'archived' && (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border border-zinc-500/20 shrink-0">
+                              Archived
+                            </span>
+                          )}
                         </div>
                       </div>
                       {p.visibility === 'private' ? (
@@ -131,9 +161,13 @@ export default function ProjectsPage() {
                         </Badge>
                       ))}
                     </div>
-                    <p className="text-xs text-muted-foreground/80 pt-3 border-t border-border/50">
-                      Updated {formatRelativeTime(p.updatedAt)}
-                    </p>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground pt-3 border-t border-border/50">
+                      <span className="flex items-center gap-1 font-medium text-foreground/80 truncate">
+                        <Crown className="w-3 h-3 text-amber-500 shrink-0" />
+                        <span className="truncate">{p.owner?.name ? p.owner.name.split(' ')[0] : 'Owner'}</span>
+                      </span>
+                      <span className="shrink-0">Updated {formatRelativeTime(p.updatedAt)}</span>
+                    </div>
                   </CardContent>
                 </Card>
               </Link>
@@ -144,7 +178,7 @@ export default function ProjectsPage() {
                 <FolderKanban className="w-10 h-10 text-muted-foreground mx-auto" />
                 <p className="text-base font-medium">No projects found</p>
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                  {search ? `No projects match "${search}". Try searching with a different term.` : 'Create your first project to begin collaborating.'}
+                  {search ? `No projects match "${search}". Try searching with a different term.` : 'No active projects available in this view.'}
                 </p>
               </div>
             )}

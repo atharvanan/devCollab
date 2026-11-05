@@ -51,3 +51,39 @@ exports.searchUsers = catchAsync(async (req, res) => {
   }).select('name email avatar').limit(10);
   res.json({ success: true, data: { users } });
 });
+
+exports.getMyPermissions = catchAsync(async (req, res) => {
+  const canCreate = req.user.role === 'admin' || req.user.canCreateProjects === true;
+  res.json({
+    success: true,
+    data: {
+      userId: req.user._id,
+      role: req.user.role,
+      isAdmin: req.user.role === 'admin',
+      canCreateProjects: canCreate,
+    },
+  });
+});
+
+exports.setProjectCreationPermission = catchAsync(async (req, res) => {
+  if (req.user.role !== 'admin') {
+    throw new AppError('Authorization Denied: Only Platform Administrators can manage project creation privileges.', 403);
+  }
+
+  const { canCreateProjects } = req.body;
+  if (typeof canCreateProjects !== 'boolean') {
+    throw new AppError('canCreateProjects must be a boolean (true/false)', 400);
+  }
+
+  const target = await User.findById(req.params.userId);
+  if (!target) throw new AppError('User not found', 404);
+
+  target.canCreateProjects = canCreateProjects;
+  await target.save();
+
+  res.json({
+    success: true,
+    message: `Project creation permission ${canCreateProjects ? 'granted to' : 'revoked from'} ${target.name}`,
+    data: { user: target.toPublicJSON() },
+  });
+});

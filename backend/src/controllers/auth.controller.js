@@ -19,6 +19,8 @@ const { isTestBotEmail } = require('../utils/testBots');
 exports.register = catchAsync(async (req, res) => {
   const { name, email, password } = req.body;
 
+  // Defensive Security: Ignore and sanitize any client-supplied elevated privileges
+  // Public registration strictly creates unprivileged regular accounts ('user', canCreateProjects: false)
   let user = await User.findOne({ email });
   if (user) {
     if (user.isVerified) {
@@ -30,6 +32,8 @@ exports.register = catchAsync(async (req, res) => {
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
     user.name = name || user.name;
     user.password = password;
+    user.role = 'user';
+    user.canCreateProjects = false;
     user.otp = otp;
     user.otpExpires = otpExpires;
     await user.save();
@@ -44,6 +48,8 @@ exports.register = catchAsync(async (req, res) => {
       data: {
         userId: user._id,
         email: user.email,
+        accountRole: 'user',
+        canCreateProjects: false,
       },
     });
   }
@@ -51,7 +57,17 @@ exports.register = catchAsync(async (req, res) => {
   const otp = generateOTP();
   const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
-  user = await User.create({ name, email, password, otp, otpExpires });
+  // Strictly enforce non-privileged default role
+  user = await User.create({
+    name,
+    email,
+    password,
+    role: 'user',
+    canCreateProjects: false,
+    isVerified: false,
+    otp,
+    otpExpires,
+  });
 
   await sendOTPEmail(email, otp, name).catch(() => {});
 
@@ -63,6 +79,8 @@ exports.register = catchAsync(async (req, res) => {
     data: {
       userId: user._id,
       email: user.email,
+      accountRole: 'user',
+      canCreateProjects: false,
     },
   });
 });

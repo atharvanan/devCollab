@@ -43,6 +43,35 @@ const projectSchema = new mongoose.Schema(
 
 projectSchema.index({ name: 'text', description: 'text' });
 
+projectSchema.methods.isOwner = function (userId) {
+  if (!userId) return false;
+  const uid = (userId._id || userId).toString();
+  const ownerId = (this.owner?._id || this.owner)?.toString();
+  return !!ownerId && ownerId === uid;
+};
+
+projectSchema.methods.getProjectManagers = function () {
+  const pms = [];
+  const seen = new Set();
+  const ownerId = (this.owner?._id || this.owner)?.toString();
+  if (this.owner) {
+    pms.push(this.owner);
+    if (ownerId) seen.add(ownerId);
+  }
+  if (Array.isArray(this.members)) {
+    this.members.forEach((m) => {
+      if (m.role === 'project_manager' || m.role === 'admin') {
+        const uId = (m.user?._id || m.user)?.toString();
+        if (uId && !seen.has(uId) && m.user) {
+          pms.push(m.user);
+          seen.add(uId);
+        }
+      }
+    });
+  }
+  return pms;
+};
+
 projectSchema.methods.isMember = function (userId) {
   if (!userId) return false;
   const uid = userId.toString();

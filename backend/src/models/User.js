@@ -9,6 +9,7 @@ const userSchema = new mongoose.Schema(
     avatar: { type: String, default: '' },
     avatarPublicId: { type: String, default: '' },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    canCreateProjects: { type: Boolean, default: false },
     isVerified: { type: Boolean, default: false },
     otp: { type: String, select: false },
     otpExpires: { type: Date, select: false },
@@ -53,6 +54,7 @@ userSchema.methods.toPublicJSON = function () {
   delete obj.resetPasswordExpires;
   delete obj.resetPasswordToken;
   delete obj.refreshTokens;
+  obj.canCreateProjects = !!(this.canCreateProjects || this.role === 'admin');
   return obj;
 };
 

@@ -49,11 +49,13 @@ export default function DashboardPage() {
               Here&apos;s what&apos;s happening across your projects and code reviews.
             </p>
           </div>
-          <Link href="/projects/new" className="shrink-0">
-            <Button className="w-full sm:w-auto">
-              <Plus className="w-4 h-4" /> New Project
-            </Button>
-          </Link>
+          {Boolean(user?.role === 'admin' || (user as any)?.canCreateProjects) && (
+            <Link href="/projects/new" className="shrink-0">
+              <Button className="w-full sm:w-auto shadow-sm">
+                <Plus className="w-4 h-4 mr-1.5" /> New Project
+              </Button>
+            </Link>
+          )}
         </div>
 
         {/* Quick Stats Grid */}

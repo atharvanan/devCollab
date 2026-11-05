@@ -19,6 +19,14 @@ exports.createProject = catchAsync(async (req, res) => {
   // with canCreateProjects may create new projects (GOVERNANCE-AUTH-001)
   const canCreate = req.user.role === 'admin' || req.user.canCreateProjects === true;
   if (!canCreate) {
+    await logGovernanceAudit({
+      actor: req.user,
+      action: 'PROJECT_CREATION_ATTEMPT',
+      targetResource: 'project',
+      details: `${req.user.name} (${req.user.email}) attempted to create project "${req.body?.name || 'Untitled'}" without project creation authorization.`,
+      severity: 'medium',
+      status: 'blocked',
+    });
     throw new AppError(
       'Authorization Denied: You do not have permission to create projects. Only authorized Project Managers or Platform Administrators can create projects.',
       403
@@ -143,6 +151,15 @@ exports.deleteProject = catchAsync(async (req, res) => {
   const project = await Project.findById(req.params.id);
   if (!project) throw new AppError('Project not found', 404);
   if (project.owner.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    await logGovernanceAudit({
+      project: project._id,
+      actor: req.user,
+      action: 'PROJECT_DELETION_ATTEMPT',
+      targetResource: 'project',
+      details: `${req.user.name} attempted to delete project "${project.name}" without Project Owner authority.`,
+      severity: 'critical',
+      status: 'blocked',
+    });
     throw new AppError('Only the project owner can delete this project', 403);
   }
 
@@ -201,6 +218,16 @@ exports.transferOwnership = catchAsync(async (req, res) => {
   // Verification: Only current Project Owner or Platform Administrator
   const isOwner = project.isOwner(req.user._id) || req.user.role === 'admin';
   if (!isOwner) {
+    await logGovernanceAudit({
+      project: project._id,
+      actor: req.user,
+      targetUser: newOwnerId,
+      action: 'OWNERSHIP_TRANSFER_ATTEMPT',
+      targetResource: 'project_ownership',
+      details: `${req.user.name} attempted to transfer project ownership of "${project.name}" without Project Owner authority.`,
+      severity: 'critical',
+      status: 'blocked',
+    });
     throw new AppError('Authorization Denied: Only the Project Owner can transfer project ownership.', 403);
   }
 
@@ -280,6 +307,16 @@ exports.appointProjectManager = catchAsync(async (req, res) => {
 
   // Only Project Owner or Platform Admin can appoint Project Managers
   if (!project.isOwner(req.user._id) && req.user.role !== 'admin') {
+    await logGovernanceAudit({
+      project: project._id,
+      actor: req.user,
+      targetUser: userId,
+      action: 'PM_APPOINTMENT_ATTEMPT',
+      targetResource: 'project_management',
+      details: `${req.user.name} attempted to appoint ${userId} as Project Manager without Project Owner authority.`,
+      severity: 'high',
+      status: 'blocked',
+    });
     throw new AppError('Authorization Denied: Only the Project Owner can appoint Project Managers.', 403);
   }
 
@@ -329,6 +366,16 @@ exports.revokeProjectManager = catchAsync(async (req, res) => {
 
   // Only Project Owner or Platform Admin can revoke Project Managers
   if (!project.isOwner(req.user._id) && req.user.role !== 'admin') {
+    await logGovernanceAudit({
+      project: project._id,
+      actor: req.user,
+      targetUser: userId,
+      action: 'PM_REVOCATION_ATTEMPT',
+      targetResource: 'project_management',
+      details: `${req.user.name} attempted to revoke Project Manager privileges from ${userId} without Project Owner authority.`,
+      severity: 'high',
+      status: 'blocked',
+    });
     throw new AppError('Authorization Denied: Only the Project Owner can revoke Project Manager privileges.', 403);
   }
 
@@ -392,11 +439,31 @@ exports.updateMemberRole = catchAsync(async (req, res) => {
 
   // Privilege Guard 1: Only Project Owner can assign or promote someone to Project Manager
   if (role === 'project_manager' && !project.isOwner(req.user._id) && req.user.role !== 'admin') {
+    await logGovernanceAudit({
+      project: project._id,
+      actor: req.user,
+      targetUser: userId,
+      action: 'ROLE_ELEVATION_ATTEMPT',
+      targetResource: 'membership',
+      details: `${req.user.name} attempted to elevate ${member.user?.name || userId} to Project Manager without Project Owner authority.`,
+      severity: 'high',
+      status: 'blocked',
+    });
     throw new AppError('Authorization Denied: Only the Project Owner can appoint Project Managers.', 403);
   }
 
   // Privilege Guard 2: Only Project Owner can demote an existing Project Manager
   if (member.role === 'project_manager' && role !== 'project_manager' && !project.isOwner(req.user._id) && req.user.role !== 'admin') {
+    await logGovernanceAudit({
+      project: project._id,
+      actor: req.user,
+      targetUser: userId,
+      action: 'PM_DEMOTION_ATTEMPT',
+      targetResource: 'membership',
+      details: `${req.user.name} attempted to demote Project Manager ${member.user?.name || userId} without Project Owner authority.`,
+      severity: 'high',
+      status: 'blocked',
+    });
     throw new AppError('Authorization Denied: Only the Project Owner can demote a Project Manager.', 403);
   }
 
@@ -537,7 +604,37 @@ exports.updateLifecycle = catchAsync(async (req, res) => {
   if (!project) throw new AppError('Project not found', 404);
 
   if (!project.isProjectManager(req.user._id)) {
+    await logGovernanceAudit({
+      project: project._id,
+      actor: req.user,
+      action: 'PROJECT_STATUS_CHANGE_ATTEMPT',
+      targetResource: 'lifecycle',
+      details: `${req.user.name} attempted to change lifecycle status of "${project.name}" without Project Manager or Owner authority.`,
+      severity: 'high',
+      status: 'blocked',
+      metadata: { attemptedStatus: status },
+    });
     throw new AppError('Only Project Managers or the Project Owner can change project lifecycle status', 403);
+  }
+
+  // Explicit Archiving Policy:
+  // Project Managers may hold, resume and complete projects.
+  // Archiving strictly requires Project Owner or Platform Administrator authority.
+  if (status === 'archived') {
+    const isOwner = project.isOwner(req.user._id) || req.user.role === 'admin';
+    if (!isOwner) {
+      await logGovernanceAudit({
+        project: project._id,
+        actor: req.user,
+        action: 'PROJECT_ARCHIVE_ATTEMPT',
+        targetResource: 'lifecycle',
+        details: `${req.user.name} (Project Manager) attempted to archive project "${project.name}". Archiving strictly requires Project Owner or Platform Administrator authority.`,
+        severity: 'high',
+        status: 'blocked',
+        metadata: { attemptedStatus: status },
+      });
+      throw new AppError('Authorization Denied: Only the Project Owner or Platform Administrator can archive a project.', 403);
+    }
   }
 
   const previousStatus = project.status || 'active';

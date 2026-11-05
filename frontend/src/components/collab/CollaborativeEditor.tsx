@@ -29,10 +29,13 @@ import { ShareMetrics, Contributor } from './ShareMetrics';
 import { cn, CONTRIBUTOR_COLORS, ROLE_LABELS, DOMAINS, formatRelativeTime } from '@/lib/utils';
 
 interface Props {
-  session: any;
-  project: any;
+  session?: any;
+  sessionId?: string;
+  project?: any;
+  projectId?: string;
   onSessionUpdated?: (updated: any) => void;
   onReviewCreated?: (review: any) => void;
+  onExportToReview?: () => void;
 }
 
 const SUPPORTED_LANGUAGES = [
@@ -59,15 +62,26 @@ const SUPPORTED_LANGUAGES = [
   { value: 'shell', label: 'Shell / Bash' },
 ];
 
-export function CollaborativeEditor({ session, project, onSessionUpdated, onReviewCreated }: Props) {
+export function CollaborativeEditor({
+  session: propSession,
+  sessionId: propSessionId,
+  project,
+  projectId,
+  onSessionUpdated,
+  onReviewCreated,
+  onExportToReview,
+}: Props) {
   const { user } = useAppSelector((s) => s.auth);
   const { toast } = useToast();
 
-  const [code, setCode] = useState(session?.code || '');
-  const [language, setLanguage] = useState(session?.language || 'javascript');
-  const [title, setTitle] = useState(session?.title || 'Collaborative Scratchpad');
-  const [contributors, setContributors] = useState<Contributor[]>(session?.contributors || []);
-  const [lineAttributions, setLineAttributions] = useState<any[]>(session?.lineAttributions || []);
+  const [session, setSession] = useState<any>(propSession || null);
+  const sessionId = propSession?._id || propSessionId || session?._id;
+
+  const [code, setCode] = useState(propSession?.code || '');
+  const [language, setLanguage] = useState(propSession?.language || 'javascript');
+  const [title, setTitle] = useState(propSession?.title || 'Collaborative Scratchpad');
+  const [contributors, setContributors] = useState<Contributor[]>(propSession?.contributors || []);
+  const [lineAttributions, setLineAttributions] = useState<any[]>(propSession?.lineAttributions || []);
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
   const [typingUser, setTypingUser] = useState<{ name: string; line?: number } | null>(null);
   const [activeLine, setActiveLine] = useState<number>(1);
@@ -79,23 +93,46 @@ export function CollaborativeEditor({ session, project, onSessionUpdated, onRevi
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
-  const [exportTitle, setExportTitle] = useState(`Review: ${session?.title || 'Shared Code'}`);
+  const [exportTitle, setExportTitle] = useState(`Review: ${propSession?.title || 'Shared Code'}`);
 
   // Runner & Chat state
   const [running, setRunning] = useState(false);
   const [runnerOutput, setRunnerOutput] = useState<string | null>(null);
   const [showConsole, setShowConsole] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
-  const [messages, setMessages] = useState<any[]>(session?.messages || []);
+  const [messages, setMessages] = useState<any[]>(propSession?.messages || []);
   const [chatInput, setChatInput] = useState('');
   const [showChat, setShowChat] = useState(true);
   const chatMessagesEndRef = useRef<HTMLDivElement>(null);
 
   const editorRef = useRef<HTMLTextAreaElement>(null);
-  const socketRef = useRef(getSocket());
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
 
-  const sessionId = session?._id;
+  // Fetch session data if not passed directly
+  useEffect(() => {
+    if (propSession) {
+      setSession(propSession);
+      setCode(propSession.code || '');
+      setLanguage(propSession.language || 'javascript');
+      setTitle(propSession.title || 'Collaborative Scratchpad');
+      setContributors(propSession.contributors || []);
+      setLineAttributions(propSession.lineAttributions || []);
+      if (propSession.messages) setMessages(propSession.messages);
+    } else if (sessionId) {
+      apiClient.get(`/collab/${sessionId}`).then((res) => {
+        const s = res.data?.data?.session;
+        if (s) {
+          setSession(s);
+          setCode(s.code || '');
+          setLanguage(s.language || 'javascript');
+          setTitle(s.title || 'Collaborative Scratchpad');
+          setContributors(s.contributors || []);
+          setLineAttributions(s.lineAttributions || []);
+          if (s.messages) setMessages(s.messages);
+        }
+      }).catch(() => {});
+    }
+  }, [propSession, sessionId]);
 
   // Sync message history when session updates or switches
   useEffect(() => {
@@ -107,7 +144,7 @@ export function CollaborativeEditor({ session, project, onSessionUpdated, onRevi
   // 1. Join real-time room on mount
   useEffect(() => {
     if (!sessionId) return;
-    const socket = socketRef.current;
+    const socket = getSocket();
 
     const joinCollab = () => {
       socket.emit('collab:join', { sessionId });
@@ -115,9 +152,8 @@ export function CollaborativeEditor({ session, project, onSessionUpdated, onRevi
 
     if (socket.connected) {
       joinCollab();
-    } else {
-      socket.on('connect', joinCollab);
     }
+    socket.on('connect', joinCollab);
 
     const handleCollabInit = (payload: any) => {
       if (payload.messages && Array.isArray(payload.messages) && payload.messages.length > 0) {
@@ -220,7 +256,7 @@ export function CollaborativeEditor({ session, project, onSessionUpdated, onRevi
     setCode(newCode);
     setHasUnsaved(true);
 
-    const socket = socketRef.current;
+    const socket = getSocket();
     socket.emit('collab:codeChange', {
       sessionId,
       code: newCode,
@@ -243,7 +279,8 @@ export function CollaborativeEditor({ session, project, onSessionUpdated, onRevi
     const lineNum = textBefore.split('\n').length;
     setActiveLine(lineNum);
 
-    socketRef.current.emit('collab:cursor', {
+    const socket = getSocket();
+    socket.emit('collab:cursor', {
       sessionId,
       line: lineNum,
       col: target.selectionStart - textBefore.lastIndexOf('\n'),
@@ -306,10 +343,32 @@ export function CollaborativeEditor({ session, project, onSessionUpdated, onRevi
     setChatInput('');
 
     // Emit via socket for instant live broadcast
-    socketRef.current.emit('collab:chat', {
-      sessionId,
-      message: text,
-    });
+    const socket = getSocket();
+    if (socket && socket.connected) {
+      socket.emit('collab:chat', {
+        sessionId,
+        message: text,
+      });
+    }
+
+    // Dual-sync to REST endpoint for persistence and guaranteed delivery
+    try {
+      const res = await apiClient.post(`/collab/${sessionId}/messages`, {
+        content: text,
+      });
+      if (res.data?.data?.message) {
+        const msg = res.data.data.message;
+        setMessages((prev) => {
+          const msgId = (msg._id || msg.id)?.toString();
+          if (msgId && prev.some((m) => (m._id || m.id)?.toString() === msgId)) {
+            return prev;
+          }
+          return [...prev, msg];
+        });
+      }
+    } catch (err) {
+      // Socket fallback
+    }
   };
 
   // 6. 1-Click Export to Code Review

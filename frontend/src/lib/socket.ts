@@ -26,13 +26,14 @@ export const getSocket = (): Socket => {
 export const connectSocket = (token: string) => {
   const s = getSocket();
   s.auth = { token };
-  s.connect();
+  if (!s.connected) {
+    s.connect();
+  }
   return s;
 };
 
 export const disconnectSocket = () => {
-  if (socket) {
+  if (socket && socket.connected) {
     socket.disconnect();
-    socket = null;
   }
 };

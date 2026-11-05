@@ -602,9 +602,19 @@ export default function ProjectDetailPage() {
             {activeSession && (
               <div className="rounded-xl border border-border overflow-hidden bg-card shadow-sm">
                 <CollaborativeEditor
+                  session={activeSession}
                   sessionId={activeSession._id}
+                  project={project}
                   projectId={id}
+                  onSessionUpdated={(updated) => {
+                    setActiveSession(updated);
+                    refetchCollab();
+                  }}
                   onExportToReview={() => {
+                    refetchCollab();
+                    setTab('reviews');
+                  }}
+                  onReviewCreated={() => {
                     refetchCollab();
                     setTab('reviews');
                   }}

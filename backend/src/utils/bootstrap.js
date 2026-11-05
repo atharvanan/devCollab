@@ -5,62 +5,22 @@ const CollabSession = require('../models/CollabSession');
 const { TEST_BOTS, ensureBotUser } = require('./testBots');
 const logger = require('./logger');
 
+const { bootstrapPlatformAdmin } = require('./adminProvisioning');
+const { reconcileProjectOwnership } = require('./ownershipReconciliation');
+
 /**
  * Automatically bootstraps initial workspace data if the database is brand new.
- * Safe and non-destructive: if any project already exists, it skips immediately.
+ * Safe, auditable, and non-destructive: preserves existing valid data.
  */
 async function bootstrapInitialData() {
   try {
-    // 1. Ensure Atharva's Lead PM account exists and holds Platform Administrator privileges
-    let atharva = await User.findOne({ email: 'atharvanandurkar2411@gmail.com' });
-    if (!atharva) {
-      atharva = await User.create({
-        name: 'Atharva Nandurkar',
-        email: 'atharvanandurkar2411@gmail.com',
-        password: 'Password123',
-        role: 'admin',
-        canCreateProjects: true,
-        isVerified: true,
-        bio: 'Lead Platform Architect & Project Manager',
-      });
-      logger.info('[BOOTSTRAP] Created Lead PM & Platform Administrator: Atharva Nandurkar');
-    } else {
-      let needsSave = false;
-      if (atharva.role !== 'admin') {
-        atharva.role = 'admin';
-        needsSave = true;
-      }
-      if (!atharva.canCreateProjects) {
-        atharva.canCreateProjects = true;
-        needsSave = true;
-      }
-      if (needsSave) {
-        await atharva.save();
-        logger.info('[BOOTSTRAP] Reconciled Platform Administrator privileges for Atharva');
-      }
-    }
+    // 1. Idempotently bootstrap or reconcile Platform Administrator
+    const admin = await bootstrapPlatformAdmin();
 
     const projectCount = await Project.countDocuments();
     if (projectCount > 0) {
-      // Reconcile projects: ensure each project has a valid owner and owner is a project_manager
-      const allProjects = await Project.find();
-      for (const p of allProjects) {
-        let pModified = false;
-        if (!p.owner) {
-          p.owner = atharva._id;
-          pModified = true;
-        }
-        const hasOwnerInMembers = p.members.some(
-          (m) => (m.user?._id || m.user)?.toString() === p.owner.toString()
-        );
-        if (!hasOwnerInMembers) {
-          p.members.push({ user: p.owner, role: 'project_manager', joinedAt: new Date() });
-          pModified = true;
-        }
-        if (pModified) {
-          await p.save();
-        }
-      }
+      // Safely reconcile ownership without blindly assigning orphan projects to Lead Admin
+      await reconcileProjectOwnership({ dryRun: false });
       return; // Existing database reconciled successfully
     }
 

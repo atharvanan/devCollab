@@ -14,6 +14,9 @@ import {
   ShieldCheck,
   ArrowRight,
   RotateCcw,
+  Trash2,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/Button';
@@ -21,7 +24,7 @@ import { Input } from '@/components/ui/Input';
 import { Avatar, Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { apiClient } from '@/lib/apiClient';
 import { useAppSelector, useAppDispatch } from '@/hooks/useRedux';
-import { updateUser } from '@/store/slices/authSlice';
+import { updateUser, clearAuth } from '@/store/slices/authSlice';
 import { useToast } from '@/components/ui/Toast';
 
 export default function SettingsPage() {
@@ -46,6 +49,34 @@ export default function SettingsPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [resetCodeLoading, setResetCodeLoading] = useState(false);
+
+  // Delete account state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const handleDeleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deletePassword) {
+      toast.error('Please enter your password to confirm account deletion.');
+      return;
+    }
+    try {
+      setDeleteLoading(true);
+      const res = await apiClient.delete('/users/account', {
+        data: { password: deletePassword },
+      });
+      toast.success(res.data.message || 'Your account has been deleted.');
+      setDeleteModalOpen(false);
+      dispatch(clearAuth());
+      router.push('/login');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to delete account. Please verify your password.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   useEffect(() => {
     document.title = 'Account Settings | DevCollab';
@@ -368,6 +399,118 @@ export default function SettingsPage() {
             </Button>
           </div>
         </div>
+
+        {/* Danger Zone: Delete Account */}
+        <div className="border border-destructive/30 bg-destructive/5 rounded-2xl p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h3 className="font-bold text-base text-destructive flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-destructive" /> Danger Zone — Delete Account
+              </h3>
+              <p className="text-xs text-muted-foreground leading-relaxed max-w-xl">
+                Permanently delete your DevCollab account, personal credentials, and project memberships.
+                This action is irreversible and immediately wipes your active session.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setDeletePassword('');
+                setDeleteModalOpen(true);
+              }}
+              className="border-destructive/40 text-destructive hover:bg-destructive/10 shrink-0 font-semibold"
+            >
+              <Trash2 className="w-4 h-4 mr-1.5" /> Delete Account
+            </Button>
+          </div>
+        </div>
+
+        {/* Delete Account Confirmation Modal */}
+        {deleteModalOpen && (
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4"
+            onClick={() => setDeleteModalOpen(false)}
+          >
+            <div
+              className="bg-card border border-destructive/40 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
+                    <Trash2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg text-foreground">Confirm Account Deletion</h3>
+                    <p className="text-xs text-muted-foreground">Irreversible action</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDeleteModalOpen(false)}
+                  className="p-1 rounded-lg text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive leading-relaxed">
+                <p className="font-semibold mb-1">Warning: Permanent Data Removal</p>
+                <p>
+                  All your personal profile data, notifications, and memberships will be deleted.
+                  If you are the Project Owner of projects with other team members, you must transfer project ownership first.
+                </p>
+              </div>
+
+              <form onSubmit={handleDeleteAccount} className="space-y-4 pt-1">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">
+                    Confirm your current password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                    <Input
+                      type={showDeletePassword ? 'text' : 'password'}
+                      placeholder="Enter your password to verify identity"
+                      value={deletePassword}
+                      onChange={(e) => setDeletePassword(e.target.value)}
+                      required
+                      className="pl-9 pr-10 text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowDeletePassword(!showDeletePassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
+                    >
+                      {showDeletePassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2.5 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDeleteModalOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    loading={deleteLoading}
+                    className="bg-destructive hover:bg-destructive/90 text-destructive-foreground font-semibold"
+                  >
+                    <Trash2 className="w-4 h-4 mr-1.5" /> Yes, Delete My Account
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

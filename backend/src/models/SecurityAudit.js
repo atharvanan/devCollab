@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const securityAuditSchema = new mongoose.Schema(
   {
-    project: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', required: true, index: true },
+    project: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', required: false, index: true },
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     actor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     targetUser: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

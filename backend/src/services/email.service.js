@@ -28,20 +28,29 @@ const getTransporter = async () => {
     !process.env.SMTP_PASS.includes('your_app_password');
 
   if (isRealSMTP) {
-    transporterInstance = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT) || 587,
-      secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-      tls: { rejectUnauthorized: false },
-      connectionTimeout: 3000,
-      greetingTimeout: 3000,
-      socketTimeout: 3000,
-    });
-    logger.info(`[EMAIL] Using real SMTP via ${process.env.SMTP_USER}`);
+    const isGmail =
+      (process.env.SMTP_HOST || '').includes('gmail') ||
+      (process.env.SMTP_USER || '').includes('@gmail');
+
+    transporterInstance = isGmail
+      ? nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+          },
+        })
+      : nodemailer.createTransport({
+          host: process.env.SMTP_HOST || 'smtp.gmail.com',
+          port: parseInt(process.env.SMTP_PORT) || 587,
+          secure: parseInt(process.env.SMTP_PORT) === 465,
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+          },
+          tls: { rejectUnauthorized: false },
+        });
+    logger.info(`[EMAIL] Using real SMTP via ${process.env.SMTP_USER} (${isGmail ? 'Gmail Service' : 'Custom Host'})`);
   } else {
     // Auto-provision a free Ethereal test account
     const testAccount = await nodemailer.createTestAccount();
@@ -81,8 +90,9 @@ const verifySMTPConnection = async () => {
 const sendEmail = async ({ to, subject, html, text }) => {
   try {
     const transporter = await getTransporter();
-    const from = process.env.EMAIL_FROM ||
-      (process.env.SMTP_USER ? `DevCollab <${process.env.SMTP_USER}>` : 'DevCollab <noreply@devcollab.app>');
+    const from = process.env.SMTP_USER
+      ? `DevCollab <${process.env.SMTP_USER}>`
+      : (process.env.EMAIL_FROM || 'DevCollab <noreply@devcollab.app>');
 
     const info = await transporter.sendMail({ from, to, subject, html, text });
     logger.info(`[EMAIL] Delivered to ${to}: ${info.messageId}`);
@@ -117,7 +127,7 @@ const sendOTPEmail = async (to, otp, name) => {
       <p style="color: #64748b; font-size: 12px;">DevCollab — Collaborative Code Review Platform</p>
     </div>
   `;
-  return sendEmail({ to, subject: 'Verify your DevCollab account', html });
+  return sendEmail({ to, subject: `${otp} is your DevCollab verification code`, html });
 };
 
 const sendNotificationEmail = async (to, { title, message, link }) => {

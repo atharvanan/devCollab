@@ -36,16 +36,15 @@ exports.register = catchAsync(async (req, res) => {
     user.otpExpires = otpExpires;
     await user.save();
 
-    await sendOTPEmail(email, otp, user.name).catch(() => {});
+    await sendOTPEmail(email, otp, user.name);
 
     return res.status(200).json({
       success: true,
-      message: 'Account pending verification. A fresh OTP has been sent to your email.',
+      requiresOTP: true,
+      message: 'Account pending verification. A fresh verification code has been sent to your email.',
       data: {
         userId: user._id,
         email: user.email,
-        accountRole: 'user',
-        canCreateProjects: true,
       },
     });
   }
@@ -53,31 +52,29 @@ exports.register = catchAsync(async (req, res) => {
   const userCount = await User.countDocuments();
   const isFirstUser = userCount === 0;
 
+  const otp = generateOTP();
+  const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+
   user = await User.create({
     name,
     email,
     password,
     role: isFirstUser ? 'admin' : 'user',
     canCreateProjects: true,
-    isVerified: true,
+    isVerified: false,
+    otp,
+    otpExpires,
   });
 
-  const accessToken = generateAccessToken(user._id);
-  const refreshToken = generateRefreshToken(user._id);
-  user.refreshTokens = [refreshToken];
-  user.lastSeen = new Date();
-  await user.save();
-
-  setRefreshCookie(res, refreshToken);
+  await sendOTPEmail(email, otp, name);
 
   res.status(201).json({
     success: true,
-    message: isFirstUser
-      ? 'Platform Administrator account created! Welcome to DevCollab.'
-      : 'Account created successfully! Welcome to DevCollab.',
+    requiresOTP: true,
+    message: 'Verification code sent to your email address.',
     data: {
-      accessToken,
-      user: user.toPublicJSON(),
+      userId: user._id,
+      email: user.email,
     },
   });
 });
@@ -141,10 +138,7 @@ exports.resendOTP = catchAsync(async (req, res) => {
   user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
   await user.save();
 
-  sendOTPEmail(user.email, otp, user.name).catch((err) => {
-    logger.warn(`[EMAIL] Failed to deliver resend OTP to ${user.email}: ${err.message}`);
-  });
-  logger.info(`[RESEND OTP] New verification code for ${user.email}: ${otp}`);
+  await sendOTPEmail(user.email, otp, user.name);
 
   res.json({
     success: true,
@@ -152,7 +146,6 @@ exports.resendOTP = catchAsync(async (req, res) => {
     data: {
       userId: user._id,
       email: user.email,
-      otp,
     },
   });
 });
@@ -205,44 +198,21 @@ exports.login = catchAsync(async (req, res) => {
     return res.json({ success: true, data: { accessToken, user: user.toPublicJSON() } });
   }
 
-  // If explicitly requested via header (used by OTP-specific test suites) or if REQUIRE_LOGIN_OTP is enabled:
-  if (req.headers['x-require-otp'] || process.env.REQUIRE_LOGIN_OTP === 'true') {
-    const loginOtp = generateOTP();
-    user.otp = loginOtp;
-    user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
-    await user.save();
-
-    sendOTPEmail(user.email, loginOtp, user.name).catch((err) => {
-      logger.warn(`[EMAIL] Failed to deliver login OTP to ${user.email}: ${err.message}`);
-    });
-    logger.info(`[LOGIN OTP] Verification code for ${user.email}: ${loginOtp}`);
-
-    return res.json({
-      success: true,
-      requiresOTP: true,
-      message: 'OTP verification code sent to your email address.',
-      data: {
-        userId: user._id,
-        email: user.email,
-        otp: loginOtp,
-      },
-    });
-  }
-
-  // Direct, instant authentication for all users
-  const accessToken = generateAccessToken(user._id);
-  const refreshToken = generateRefreshToken(user._id);
-  user.refreshTokens = [...(user.refreshTokens || []).slice(-4), refreshToken];
-  user.lastSeen = new Date();
+  // Multi-factor verification: Generate 6-digit OTP and send directly to user's real email
+  const loginOtp = generateOTP();
+  user.otp = loginOtp;
+  user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
   await user.save();
 
-  setRefreshCookie(res, refreshToken);
+  await sendOTPEmail(user.email, loginOtp, user.name);
+
   return res.json({
     success: true,
-    message: 'Login successful',
+    requiresOTP: true,
+    message: 'A 6-digit verification code has been sent to your email address.',
     data: {
-      accessToken,
-      user: user.toPublicJSON(),
+      userId: user._id,
+      email: user.email,
     },
   });
 });

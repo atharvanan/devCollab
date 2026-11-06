@@ -84,14 +84,13 @@ export default function RegisterPage() {
   const onSubmit = async (data: RegisterFormData) => {
     const result = await dispatch(registerUser(data));
     if (registerUser.fulfilled.match(result)) {
-      const payload = result.payload || {};
-      if (payload.accessToken && payload.user) {
-        toast.success('Account created successfully! Welcome to DevCollab.');
-        router.push('/dashboard');
-        return;
-      }
-      toast.success('Account created! Please sign in.');
-      router.push('/login');
+      const payload = (result.payload as any)?.data || result.payload || {};
+      const params = new URLSearchParams();
+      if (payload.userId) params.set('userId', payload.userId);
+      params.set('email', payload.email || data.email);
+      params.set('mode', 'register');
+      toast.info('Verification code sent to your email address.');
+      router.push(`/verify-otp?${params.toString()}`);
     } else {
       const errMessage =
         (result.payload as string) ||

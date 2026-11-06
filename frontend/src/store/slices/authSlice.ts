@@ -36,8 +36,7 @@ export const loginUser = createAsyncThunk('auth/login', async (credentials: { em
         requiresOTP: true,
         userId: res.data?.data?.userId,
         email: res.data?.data?.email || credentials.email,
-        otp: res.data?.data?.otp,
-        message: res.data?.message || 'OTP verification code sent to your email.',
+        message: res.data?.message || 'Verification code sent to your email address.',
       };
     }
     return res.data.data;

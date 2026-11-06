@@ -98,7 +98,44 @@ const verifySMTPConnection = async () => {
   }
 };
 
+const sendViaResend = async ({ to, subject, html, text }) => {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM || 'DevCollab <onboarding@resend.dev>';
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from,
+      to: Array.isArray(to) ? to : [to],
+      subject,
+      html,
+      text,
+    }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || data.error?.message || 'Failed to send via Resend API');
+  }
+  logger.info(`[EMAIL] Delivered via Resend HTTPS to ${to}: ${data.id}`);
+  return { messageId: data.id };
+};
+
 const sendEmail = async ({ to, subject, html, text }) => {
+  // If RESEND_API_KEY is set, dispatch over standard HTTPS Port 443 (bypasses cloud SMTP port blocks)
+  if (process.env.RESEND_API_KEY) {
+    try {
+      return await sendViaResend({ to, subject, html, text });
+    } catch (err) {
+      logger.error(`[EMAIL] Resend delivery failed to ${to}:`, err.message);
+      throw err;
+    }
+  }
+
   try {
     const transporter = await getTransporter();
     const smtpUser = process.env.SMTP_USER || 'atharvanandurkar2411@gmail.com';
@@ -118,6 +155,9 @@ const sendEmail = async ({ to, subject, html, text }) => {
     return info;
   } catch (err) {
     logger.error(`[EMAIL] Failed to deliver to ${to}:`, err.message);
+    if (err.message && (err.message.includes('timeout') || err.message.includes('ETIMEDOUT') || err.code === 'ETIMEDOUT')) {
+      logger.warn('[EMAIL] Outbound SMTP timed out. Render Free tier blocks outbound SMTP ports 465/587. Configure RESEND_API_KEY to send over HTTPS Port 443 or upgrade to a paid tier.');
+    }
     throw err;
   }
 };

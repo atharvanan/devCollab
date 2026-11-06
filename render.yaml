@@ -41,6 +41,10 @@ services:
         sync: false
       - key: EMAIL_FROM
         value: DevCollab <atharvanandurkar2411@gmail.com>
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM
+        sync: false
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY

@@ -147,7 +147,14 @@ const authSlice = createSlice({
           : (action.payload as any)?.message || 'Login failed';
       })
       .addCase(registerUser.pending, (state) => { state.loading = true; state.error = null; })
-      .addCase(registerUser.fulfilled, (state) => { state.loading = false; })
+      .addCase(registerUser.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload?.accessToken && action.payload?.user) {
+          state.user = action.payload.user;
+          state.accessToken = action.payload.accessToken;
+          state.initialized = true;
+        }
+      })
       .addCase(registerUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;

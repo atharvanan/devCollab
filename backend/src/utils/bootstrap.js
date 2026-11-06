@@ -12,6 +12,13 @@ const { reconcileProjectOwnership } = require('./ownershipReconciliation');
  */
 async function bootstrapInitialData() {
   try {
+    // If SEED_INITIAL_DATA is not enabled, do not seed demo accounts or demo projects.
+    // The workspace starts completely clean: the first user who registers becomes the administrator.
+    if (process.env.SEED_INITIAL_DATA !== 'true') {
+      logger.info('[BOOTSTRAP] Clean workspace mode active: No demo accounts or projects seeded.');
+      return;
+    }
+
     // 1. Idempotently bootstrap or reconcile Platform Administrator
     const admin = await bootstrapPlatformAdmin();
 

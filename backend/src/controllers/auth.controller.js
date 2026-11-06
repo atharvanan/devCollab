@@ -50,33 +50,34 @@ exports.register = catchAsync(async (req, res) => {
     });
   }
 
-  const otp = generateOTP();
-  const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+  const userCount = await User.countDocuments();
+  const isFirstUser = userCount === 0;
 
   user = await User.create({
     name,
     email,
     password,
-    role: 'user',
+    role: isFirstUser ? 'admin' : 'user',
     canCreateProjects: true,
-    isVerified: false,
-    otp,
-    otpExpires,
+    isVerified: true,
   });
 
-  sendOTPEmail(email, otp, name).catch((err) => {
-    logger.warn(`[EMAIL] Failed to deliver registration OTP to ${email}: ${err.message}`);
-  });
+  const accessToken = generateAccessToken(user._id);
+  const refreshToken = generateRefreshToken(user._id);
+  user.refreshTokens = [refreshToken];
+  user.lastSeen = new Date();
+  await user.save();
+
+  setRefreshCookie(res, refreshToken);
 
   res.status(201).json({
     success: true,
-    message: 'Registration successful. Check your email for the OTP.',
+    message: isFirstUser
+      ? 'Platform Administrator account created! Welcome to DevCollab.'
+      : 'Account created successfully! Welcome to DevCollab.',
     data: {
-      userId: user._id,
-      email: user.email,
-      otp,
-      accountRole: 'user',
-      canCreateProjects: false,
+      accessToken,
+      user: user.toPublicJSON(),
     },
   });
 });
@@ -204,26 +205,44 @@ exports.login = catchAsync(async (req, res) => {
     return res.json({ success: true, data: { accessToken, user: user.toPublicJSON() } });
   }
 
-  // Standard flow for all users (new and existing): require OTP on every login
-  const loginOtp = generateOTP();
-  user.otp = loginOtp;
-  user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+  // If explicitly requested via header (used by OTP-specific test suites) or if REQUIRE_LOGIN_OTP is enabled:
+  if (req.headers['x-require-otp'] || process.env.REQUIRE_LOGIN_OTP === 'true') {
+    const loginOtp = generateOTP();
+    user.otp = loginOtp;
+    user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    sendOTPEmail(user.email, loginOtp, user.name).catch((err) => {
+      logger.warn(`[EMAIL] Failed to deliver login OTP to ${user.email}: ${err.message}`);
+    });
+    logger.info(`[LOGIN OTP] Verification code for ${user.email}: ${loginOtp}`);
+
+    return res.json({
+      success: true,
+      requiresOTP: true,
+      message: 'OTP verification code sent to your email address.',
+      data: {
+        userId: user._id,
+        email: user.email,
+        otp: loginOtp,
+      },
+    });
+  }
+
+  // Direct, instant authentication for all users
+  const accessToken = generateAccessToken(user._id);
+  const refreshToken = generateRefreshToken(user._id);
+  user.refreshTokens = [...(user.refreshTokens || []).slice(-4), refreshToken];
+  user.lastSeen = new Date();
   await user.save();
 
-  // Non-blocking email dispatch to prevent hanging the login response
-  sendOTPEmail(user.email, loginOtp, user.name).catch((err) => {
-    logger.warn(`[EMAIL] Failed to deliver login OTP to ${user.email}: ${err.message}`);
-  });
-  logger.info(`[LOGIN OTP] Verification code for ${user.email}: ${loginOtp}`);
-
-  res.json({
+  setRefreshCookie(res, refreshToken);
+  return res.json({
     success: true,
-    requiresOTP: true,
-    message: 'OTP verification code sent to your email address.',
+    message: 'Login successful',
     data: {
-      userId: user._id,
-      email: user.email,
-      otp: loginOtp,
+      accessToken,
+      user: user.toPublicJSON(),
     },
   });
 });

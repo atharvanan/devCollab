@@ -85,10 +85,13 @@ export default function RegisterPage() {
     const result = await dispatch(registerUser(data));
     if (registerUser.fulfilled.match(result)) {
       const payload = result.payload || {};
-      setRegistered({
-        userId: payload.userId || '',
-        email: payload.email || data.email,
-      });
+      if (payload.accessToken && payload.user) {
+        toast.success('Account created successfully! Welcome to DevCollab.');
+        router.push('/dashboard');
+        return;
+      }
+      toast.success('Account created! Please sign in.');
+      router.push('/login');
     } else {
       const errMessage =
         (result.payload as string) ||

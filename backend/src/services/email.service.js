@@ -21,36 +21,45 @@ let etherealPreviewBase = null;
 const getTransporter = async () => {
   if (transporterInstance) return transporterInstance;
 
+  const smtpUser = process.env.SMTP_USER || 'atharvanandurkar2411@gmail.com';
+  const smtpPass = process.env.SMTP_PASS || 'sgpxugfzinatkcvn';
+
   const isRealSMTP =
-    process.env.SMTP_USER &&
-    process.env.SMTP_PASS &&
-    !process.env.SMTP_USER.includes('your_email') &&
-    !process.env.SMTP_PASS.includes('your_app_password');
+    smtpUser &&
+    smtpPass &&
+    !smtpUser.includes('your_email') &&
+    !smtpPass.includes('your_app_password');
 
   if (isRealSMTP) {
     const isGmail =
       (process.env.SMTP_HOST || '').includes('gmail') ||
-      (process.env.SMTP_USER || '').includes('@gmail');
+      (smtpUser || '').includes('@gmail');
 
     transporterInstance = isGmail
       ? nodemailer.createTransport({
           service: 'gmail',
           auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
+            user: smtpUser,
+            pass: smtpPass,
           },
+          connectionTimeout: 10000,
+          greetingTimeout: 10000,
+          socketTimeout: 15000,
         })
       : nodemailer.createTransport({
           host: process.env.SMTP_HOST || 'smtp.gmail.com',
           port: parseInt(process.env.SMTP_PORT) || 587,
           secure: parseInt(process.env.SMTP_PORT) === 465,
           auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
+            user: smtpUser,
+            pass: smtpPass,
           },
+          connectionTimeout: 10000,
+          greetingTimeout: 10000,
+          socketTimeout: 15000,
           tls: { rejectUnauthorized: false },
         });
-    logger.info(`[EMAIL] Using real SMTP via ${process.env.SMTP_USER} (${isGmail ? 'Gmail Service' : 'Custom Host'})`);
+    logger.info(`[EMAIL] Using real SMTP via ${smtpUser} (${isGmail ? 'Gmail Service' : 'Custom Host'})`);
   } else {
     // Auto-provision a free Ethereal test account
     const testAccount = await nodemailer.createTestAccount();
@@ -63,6 +72,8 @@ const getTransporter = async () => {
         user: testAccount.user,
         pass: testAccount.pass,
       },
+      connectionTimeout: 10000,
+      socketTimeout: 15000,
     });
     logger.info(`[EMAIL] No real SMTP configured. Using Ethereal test email.`);
     logger.info(`[EMAIL] View sent emails at: ${etherealPreviewBase}/messages`);
@@ -90,8 +101,9 @@ const verifySMTPConnection = async () => {
 const sendEmail = async ({ to, subject, html, text }) => {
   try {
     const transporter = await getTransporter();
-    const from = process.env.SMTP_USER
-      ? `DevCollab <${process.env.SMTP_USER}>`
+    const smtpUser = process.env.SMTP_USER || 'atharvanandurkar2411@gmail.com';
+    const from = smtpUser
+      ? `DevCollab <${smtpUser}>`
       : (process.env.EMAIL_FROM || 'DevCollab <noreply@devcollab.app>');
 
     const info = await transporter.sendMail({ from, to, subject, html, text });

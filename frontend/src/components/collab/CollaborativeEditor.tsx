@@ -107,6 +107,7 @@ export function CollaborativeEditor({
 
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
+  const notifiedUsersRef = useRef<Set<string>>(new Set());
 
   // Fetch session data if not passed directly
   useEffect(() => {
@@ -165,7 +166,10 @@ export function CollaborativeEditor({
 
     const handleUserJoined = (payload: any) => {
       if (payload.user && payload.user._id !== user?._id) {
-        toast.info(`👋 ${payload.user.name} joined the live code session`);
+        if (!notifiedUsersRef.current.has(payload.user._id)) {
+          notifiedUsersRef.current.add(payload.user._id);
+          toast.info(`👋 ${payload.user.name} is online in the session`);
+        }
         setActiveUsers((prev) => {
           if (prev.some((u) => u._id === payload.user._id)) return prev;
           return [...prev, payload.user];
@@ -174,6 +178,9 @@ export function CollaborativeEditor({
     };
 
     const handleUserLeft = (payload: any) => {
+      if (payload.userId) {
+        notifiedUsersRef.current.delete(payload.userId);
+      }
       setActiveUsers((prev) => prev.filter((u) => u._id !== payload.userId));
       setRemoteCursors((prev) => {
         const next = { ...prev };
@@ -265,7 +272,7 @@ export function CollaborativeEditor({
       socket.off('collab:chatMessage', handleChatMessage);
       socket.off('collab:updated', handleSessionUpdated);
     };
-  }, [sessionId, user?._id, toast]);
+  }, [sessionId, user?._id]);
 
   // 2. Broadcast code changes over socket
   const handleCodeChange = (newCode: string) => {

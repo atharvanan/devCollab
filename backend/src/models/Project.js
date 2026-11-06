@@ -37,6 +37,24 @@ const projectSchema = new mongoose.Schema(
       enum: ['active', 'on_hold', 'completed', 'archived'],
       default: 'active',
     },
+    deletionVote: {
+      status: {
+        type: String,
+        enum: ['none', 'pending', 'approved', 'rejected'],
+        default: 'none',
+      },
+      initiatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      initiatedAt: { type: Date },
+      reason: { type: String, default: '' },
+      votes: [
+        {
+          user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+          vote: { type: String, enum: ['approve', 'reject'] },
+          comment: { type: String, default: '' },
+          votedAt: { type: Date, default: Date.now },
+        },
+      ],
+    },
   },
   { timestamps: true }
 );
@@ -98,11 +116,15 @@ projectSchema.methods.getUserRole = function (userId) {
 
 projectSchema.methods.isProjectManager = function (userId) {
   if (!userId) return false;
-  const uid = userId.toString();
+  const uid = (userId._id || userId).toString();
   const ownerId = (this.owner?._id || this.owner)?.toString();
   if (ownerId && ownerId === uid) return true;
-  const role = this.getUserRole(uid);
-  return role === 'project_manager' || role === 'admin';
+  if (!Array.isArray(this.members)) return false;
+  const member = this.members.find((m) => {
+    const memberId = (m.user?._id ?? m.user)?.toString();
+    return memberId === uid;
+  });
+  return member ? (member.role === 'project_manager' || member.role === 'admin') : false;
 };
 
 projectSchema.methods.hasAccess = function (user) {

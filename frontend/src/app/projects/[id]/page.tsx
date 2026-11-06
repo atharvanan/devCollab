@@ -81,6 +81,13 @@ export default function ProjectDetailPage() {
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [deletingProject, setDeletingProject] = useState(false);
 
+  // Protective deletion vote states
+  const [deletionReason, setDeletionReason] = useState('');
+  const [voteComment, setVoteComment] = useState('');
+  const [initiatingVote, setInitiatingVote] = useState(false);
+  const [voting, setVoting] = useState(false);
+  const [cancellingVote, setCancellingVote] = useState(false);
+
   useJoinRoom(`project:${id}`);
 
   // Fetch project details
@@ -154,6 +161,13 @@ export default function ProjectDetailPage() {
     refetchGovernance();
     refetchAudits();
     toast.info('👑 Project ownership was updated.');
+  });
+
+  useSocket('project:deletion_vote_updated', () => {
+    refetchProject();
+    refetchGovernance();
+    refetchAudits();
+    toast.info('🗳️ Project deletion vote was updated.');
   });
 
   useEffect(() => {
@@ -314,6 +328,67 @@ export default function ProjectDetailPage() {
     }
   };
 
+  // Handle initiate protective deletion vote
+  const handleInitiateDeletionVote = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deletionReason.trim()) {
+      toast.error('Please specify a reason for project deletion.');
+      return;
+    }
+    try {
+      setInitiatingVote(true);
+      const res = await apiClient.post(`/projects/${id}/deletion-vote/initiate`, {
+        reason: deletionReason.trim(),
+      });
+      toast.success(res.data.message || 'Deletion vote initiated. Team members notified.');
+      setDeletionReason('');
+      setDeleteModalOpen(false);
+      refetchProject();
+      refetchGovernance();
+      refetchAudits();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to initiate deletion vote');
+    } finally {
+      setInitiatingVote(false);
+    }
+  };
+
+  // Handle casting a deletion vote (approve / reject)
+  const handleCastDeletionVote = async (vote: 'approve' | 'reject') => {
+    try {
+      setVoting(true);
+      const res = await apiClient.post(`/projects/${id}/deletion-vote/vote`, {
+        vote,
+        comment: voteComment.trim(),
+      });
+      toast.success(res.data.message || `Vote recorded: ${vote}`);
+      setVoteComment('');
+      refetchProject();
+      refetchGovernance();
+      refetchAudits();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to record vote');
+    } finally {
+      setVoting(false);
+    }
+  };
+
+  // Handle cancelling a deletion vote
+  const handleCancelDeletionVote = async () => {
+    try {
+      setCancellingVote(true);
+      const res = await apiClient.post(`/projects/${id}/deletion-vote/cancel`);
+      toast.success(res.data.message || 'Project deletion request cancelled.');
+      refetchProject();
+      refetchGovernance();
+      refetchAudits();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to cancel deletion request');
+    } finally {
+      setCancellingVote(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -351,9 +426,24 @@ export default function ProjectDetailPage() {
     (m: any) => (m.user?._id || m.user) !== project?.owner?._id
   );
 
+  const deletionVote = project?.deletionVote;
+  const isVoteActive = deletionVote && deletionVote.status === 'pending';
+  const isVoteApproved = deletionVote && deletionVote.status === 'approved';
+  const isVoteRejected = deletionVote && deletionVote.status === 'rejected';
+
+  const totalProjectMembers = project?.members?.length || 1;
+  const approvedVotesCount = (deletionVote?.votes || []).filter((v: any) => v.vote === 'approve').length;
+  const rejectedVotesCount = (deletionVote?.votes || []).filter((v: any) => v.vote === 'reject').length;
+  const currentUserVote = (deletionVote?.votes || []).find(
+    (v: any) => (v.user?._id || v.user)?.toString() === user?._id?.toString()
+  );
+  const isInitiator = Boolean(
+    (deletionVote?.initiatedBy?._id || deletionVote?.initiatedBy)?.toString() === user?._id?.toString()
+  );
+
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Top Breadcrumb & Clean GitHub/Jira-style Header */}
         <div className="space-y-3 pb-2">
           {/* Breadcrumb */}
@@ -485,12 +575,17 @@ export default function ProjectDetailPage() {
                   </Button>
                 )}
 
-                {isOwner && (
+                {(isOwner || isPM) && (
                   <Button
                     size="sm"
                     variant="outline"
                     className="border-destructive/30 text-destructive hover:bg-destructive/10"
                     onClick={() => setDeleteModalOpen(true)}
+                    title={
+                      project?.members?.length > 1 && !isVoteApproved
+                        ? 'Initiate protective deletion vote'
+                        : 'Delete project'
+                    }
                   >
                     <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Delete
                   </Button>
@@ -499,6 +594,148 @@ export default function ProjectDetailPage() {
             )}
           </div>
         </div>
+
+        {/* Protective Project Deletion Voting Banner */}
+        {deletionVote && deletionVote.status !== 'none' && (
+          <div
+            className={cn(
+              'p-4 rounded-md border text-xs sm:text-sm space-y-3 shadow-xs',
+              isVoteActive && 'bg-amber-500/10 border-amber-500/30 text-foreground',
+              isVoteApproved && 'bg-emerald-500/10 border-emerald-500/30 text-foreground',
+              isVoteRejected && 'bg-rose-500/10 border-rose-500/30 text-foreground'
+            )}
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert
+                    className={cn(
+                      'w-4 h-4 shrink-0',
+                      isVoteActive && 'text-amber-500',
+                      isVoteApproved && 'text-emerald-500',
+                      isVoteRejected && 'text-rose-500'
+                    )}
+                  />
+                  <h4 className="font-semibold text-sm">
+                    {isVoteActive && '🗳️ Protective Project Deletion Vote in Progress'}
+                    {isVoteApproved && '✓ Project Deletion Approved by Team Consensus'}
+                    {isVoteRejected && '✕ Project Deletion Proposal Rejected'}
+                  </h4>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {isVoteActive && (
+                    <>
+                      Reason: <strong className="text-foreground">{deletionVote.reason}</strong> (Initiated by{' '}
+                      {deletionVote.initiatedBy?.name || 'Project Manager'} • {approvedVotesCount} of {totalProjectMembers} members approved)
+                    </>
+                  )}
+                  {isVoteApproved && (
+                    <>
+                      All {totalProjectMembers} project members voted to approve decommission. Project Manager may now permanently delete this project.
+                    </>
+                  )}
+                  {isVoteRejected && (
+                    <>
+                      One or more project members voted against deletion. The project will remain active.
+                    </>
+                  )}
+                </p>
+              </div>
+
+              {/* Action Buttons for Voting Banner */}
+              <div className="flex items-center gap-2 flex-wrap shrink-0">
+                {isVoteActive && (
+                  <>
+                    {currentUserVote ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold bg-secondary border border-border">
+                        {currentUserVote.vote === 'approve' ? (
+                          <span className="text-emerald-600 dark:text-emerald-400">✓ You Voted: Approve</span>
+                        ) : (
+                          <span className="text-rose-600 dark:text-rose-400">✕ You Voted: Reject</span>
+                        )}
+                      </span>
+                    ) : (
+                      <>
+                        <Button
+                          size="sm"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                          loading={voting}
+                          onClick={() => handleCastDeletionVote('approve')}
+                        >
+                          <Check className="w-3.5 h-3.5 mr-1" /> Approve Deletion
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-rose-500/40 text-rose-600 hover:bg-rose-500/10"
+                          loading={voting}
+                          onClick={() => handleCastDeletionVote('reject')}
+                        >
+                          <X className="w-3.5 h-3.5 mr-1" /> Reject Deletion
+                        </Button>
+                      </>
+                    )}
+
+                    {(isPM || isInitiator) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        loading={cancellingVote}
+                        onClick={handleCancelDeletionVote}
+                      >
+                        Cancel Request
+                      </Button>
+                    )}
+                  </>
+                )}
+
+                {isVoteApproved && isPM && (
+                  <Button
+                    size="sm"
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => setDeleteModalOpen(true)}
+                  >
+                    <Trash2 className="w-3.5 h-3.5 mr-1" /> Execute Deletion
+                  </Button>
+                )}
+
+                {isVoteRejected && (isPM || isInitiator) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    loading={cancellingVote}
+                    onClick={handleCancelDeletionVote}
+                  >
+                    Dismiss
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Voting breakdown list */}
+            {isVoteActive && (deletionVote.votes || []).length > 0 && (
+              <div className="pt-2 border-t border-border/50 flex flex-wrap gap-2 text-xs">
+                {deletionVote.votes.map((v: any, idx: number) => {
+                  const voterName = v.user?.name || (v.user === user?._id ? user?.name : 'Member');
+                  return (
+                    <span
+                      key={idx}
+                      className={cn(
+                        'inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium border',
+                        v.vote === 'approve'
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                          : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
+                      )}
+                    >
+                      {v.vote === 'approve' ? '✓' : '✕'} {voterName}
+                      {v.comment && <span className="opacity-75">(&quot;{v.comment}&quot;)</span>}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Tab Navigation - GitHub Repository Tabs Style */}
         <div className="flex border-b border-border gap-1 overflow-x-auto">
@@ -544,7 +781,7 @@ export default function ProjectDetailPage() {
         </div>
 
         {/* Tab 0: Kanban Board */}
-        {tab === 'board' && <KanbanBoard projectId={id} />}
+        {tab === 'board' && <KanbanBoard projectId={id} project={project} />}
 
         {/* Tab 1: Code Reviews */}
         {tab === 'reviews' && <ReviewList projectId={id} />}
@@ -1059,7 +1296,7 @@ export default function ProjectDetailPage() {
           </div>
         )}
 
-        {/* Delete Project Confirmation Modal */}
+        {/* Delete Project Confirmation / Protective Voting Modal */}
         {deleteModalOpen && (
           <div
             className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4"
@@ -1074,29 +1311,112 @@ export default function ProjectDetailPage() {
                   <AlertTriangle className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-base text-foreground">Delete Project</h3>
-                  <p className="text-xs text-muted-foreground">This action is irreversible.</p>
+                  <h3 className="font-semibold text-base text-foreground">
+                    {project?.members?.length > 1 && !isVoteApproved
+                      ? 'Protective Deletion Consensus'
+                      : 'Delete Project'}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {project?.members?.length > 1 && !isVoteApproved
+                      ? 'Team consensus required before deletion'
+                      : 'This action is irreversible.'}
+                  </p>
                 </div>
               </div>
 
-              <p className="text-xs sm:text-sm text-foreground/80 leading-relaxed">
-                Are you sure you want to delete <strong className="text-foreground">{project?.name}</strong>?
-                All associated Kanban tasks, code reviews, collaborative pair-coding sessions, and security audits will be permanently removed.
-              </p>
+              {/* If multi-member and not yet approved by all members */}
+              {project?.members?.length > 1 && !isVoteApproved ? (
+                <div className="space-y-3.5">
+                  <p className="text-xs sm:text-sm text-foreground/80 leading-relaxed">
+                    <strong>DevCollab Protective Governance:</strong> This project has{' '}
+                    <strong className="text-foreground">{project.members.length} active team members</strong>.
+                    To prevent accidental data loss or unilateral removal, all team members must vote to approve project decommission before the Project Manager can delete it.
+                  </p>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-                <Button variant="outline" size="sm" onClick={() => setDeleteModalOpen(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  loading={deletingProject}
-                  onClick={handleDeleteProject}
-                >
-                  <Trash2 className="w-4 h-4 mr-1.5" /> Yes, Delete Project
-                </Button>
-              </div>
+                  {isVoteActive ? (
+                    <div className="p-3 rounded-md bg-muted/40 border border-border text-xs space-y-2">
+                      <div className="flex items-center justify-between font-semibold">
+                        <span>Voting in Progress:</span>
+                        <span className="font-mono text-primary">
+                          {approvedVotesCount} / {totalProjectMembers} Approved
+                        </span>
+                      </div>
+                      <p className="text-muted-foreground">
+                        Please ask your remaining team members to review and cast their vote from the banner at the top of the project page.
+                      </p>
+                      <div className="flex justify-end pt-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          loading={cancellingVote}
+                          onClick={async () => {
+                            await handleCancelDeletionVote();
+                            setDeleteModalOpen(false);
+                          }}
+                        >
+                          Cancel Deletion Proposal
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleInitiateDeletionVote} className="space-y-3 pt-1">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-foreground">
+                          Reason for Project Deletion *
+                        </label>
+                        <textarea
+                          rows={3}
+                          required
+                          value={deletionReason}
+                          onChange={(e) => setDeletionReason(e.target.value)}
+                          placeholder="e.g. Project scope completed, migrating codebase to enterprise monorepo..."
+                          className="w-full text-xs rounded-md border border-border px-3 py-2 bg-background focus:outline-none focus:ring-1 focus:ring-destructive"
+                        />
+                      </div>
+                      <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDeleteModalOpen(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          size="sm"
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          loading={initiatingVote}
+                        >
+                          Initiate Member Deletion Vote
+                        </Button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              ) : (
+                /* Unanimous consensus reached or single-member project: Allow permanent deletion */
+                <div className="space-y-3.5">
+                  <p className="text-xs sm:text-sm text-foreground/80 leading-relaxed">
+                    Are you sure you want to delete <strong className="text-foreground">{project?.name}</strong>?
+                    All associated Kanban tasks, code reviews, collaborative pair-coding sessions, and security audits will be permanently removed.
+                  </p>
+
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+                    <Button variant="outline" size="sm" onClick={() => setDeleteModalOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      loading={deletingProject}
+                      onClick={handleDeleteProject}
+                    >
+                      <Trash2 className="w-4 h-4 mr-1.5" /> Yes, Permanently Delete Project
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

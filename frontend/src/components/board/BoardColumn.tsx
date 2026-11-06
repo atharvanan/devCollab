@@ -48,7 +48,7 @@ export function BoardColumn({ id, title, tasks, onAddTask, isPM, currentUserId }
       <div
         ref={setNodeRef}
         className={cn(
-          'rounded-md p-2 min-h-[260px] max-h-[calc(100vh-330px)] overflow-y-auto space-y-2 transition-colors border border-border scrollbar-none shadow-2xs',
+          'rounded-md p-2 min-h-[260px] max-h-[calc(100vh-270px)] overflow-y-auto space-y-2 transition-colors border border-border scrollbar-none shadow-2xs',
           isOver ? 'bg-primary/5 border-primary/50' : 'bg-secondary/20'
         )}
       >

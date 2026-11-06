@@ -16,5 +16,8 @@ router.patch('/:id/members/:userId/role', ctrl.updateMemberRole);
 router.delete('/:id/members/:userId', ctrl.removeMember);
 router.get('/:id/security-audits', ctrl.getSecurityAudits);
 router.patch('/:id/security-audits/:auditId/resolve', ctrl.resolveSecurityAudit);
+router.post('/:id/deletion-vote/initiate', ctrl.initiateDeletionVote);
+router.post('/:id/deletion-vote/vote', ctrl.castDeletionVote);
+router.post('/:id/deletion-vote/cancel', ctrl.cancelDeletionVote);
 
 module.exports = router;

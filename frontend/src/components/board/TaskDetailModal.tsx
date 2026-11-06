@@ -53,7 +53,26 @@ export function TaskDetailModal({ task, isPM, currentUserId, onClose }: Props) {
   const isAssignee = task.assignees?.some(
     (a: any) => (a._id || a).toString() === currentUserId?.toString()
   );
-  const canWorkOnTask = isAssignee || isPM;
+  const isUnassigned = !task.assignees || task.assignees.length === 0;
+  const canWorkOnTask = isAssignee || isPM || isUnassigned;
+
+  // Claim unassigned task
+  const handleClaimTask = async () => {
+    try {
+      setLoading(true);
+      const res = await apiClient.put(`/board/tasks/${task._id}`, {
+        assignees: [currentUserId],
+        column: task.column === 'backlog' ? 'in_progress' : task.column,
+      });
+      const updated = res.data.data.task;
+      dispatch(boardActions.updateTask(updated));
+      toast.success('Task claimed and assigned to you!');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to claim task');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // 1. Move to In Progress
   const handleStartProgress = async () => {
@@ -461,22 +480,29 @@ export function TaskDetailModal({ task, isPM, currentUserId, onClose }: Props) {
 
           {/* SECTION: Developer Action Area (Submit Work / Feedback) */}
           {canWorkOnTask && task.column !== 'done' && (
-            <div className="p-4 sm:p-5 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
-              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-primary" /> Complete Ticket & Submit Feedback
-              </h3>
+            <div className="p-4 sm:p-5 rounded-md border border-primary/20 bg-primary/5 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-primary" /> Work & Submit for PM Review
+                </h3>
+                {isUnassigned && (
+                  <Button size="sm" variant="outline" onClick={handleClaimTask} loading={loading}>
+                    <User className="w-3.5 h-3.5 mr-1" /> Claim Ticket (Assign to Me)
+                  </Button>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">
-                Write notes on what you completed, any edge cases handled, or permissions needed for the Project Manager.
+                Document what was implemented or tested before submitting for Project Manager sign-off.
               </p>
               <textarea
                 value={resolutionNotes}
                 onChange={(e) => setResolutionNotes(e.target.value)}
                 rows={3}
                 placeholder="e.g., Implemented responsive navigation bar, fixed toggle button alignment, and tested across mobile viewports..."
-                className="w-full rounded-lg border border-input bg-background p-3 text-xs sm:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="w-full rounded-md border border-input bg-background p-3 text-xs sm:text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
               />
               <div className="flex flex-wrap items-center gap-2 pt-1">
-                {task.column === 'todo' && (
+                {(task.column === 'todo' || task.column === 'backlog') && (
                   <Button
                     type="button"
                     variant="outline"
@@ -484,7 +510,7 @@ export function TaskDetailModal({ task, isPM, currentUserId, onClose }: Props) {
                     loading={loading}
                     onClick={handleStartProgress}
                   >
-                    Move to In Progress
+                    Start Work (Move to In Progress)
                   </Button>
                 )}
                 <Button
@@ -493,7 +519,7 @@ export function TaskDetailModal({ task, isPM, currentUserId, onClose }: Props) {
                   loading={loading}
                   onClick={handleSubmitResolution}
                 >
-                  <Send className="w-3.5 h-3.5 mr-1.5" /> Submit Work to PM (Mark Done)
+                  <Send className="w-3.5 h-3.5 mr-1.5" /> Submit Work to PM (For Review)
                 </Button>
               </div>
             </div>
@@ -501,7 +527,7 @@ export function TaskDetailModal({ task, isPM, currentUserId, onClose }: Props) {
 
           {/* SECTION: Project Manager Sign-Off & Routing Area */}
           {isPM && task.column !== 'done' && (
-            <div className="p-4 sm:p-5 rounded-xl border border-border bg-card space-y-3">
+            <div className="p-4 sm:p-5 rounded-md border border-border bg-card space-y-3">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-primary" /> Project Manager Decision & Routing
               </h3>
@@ -519,7 +545,7 @@ export function TaskDetailModal({ task, isPM, currentUserId, onClose }: Props) {
                     onChange={(e) => setPmFeedback(e.target.value)}
                     rows={2}
                     placeholder="e.g., Please fix the button padding on mobile screens and handle the empty state..."
-                    className="w-full rounded-lg border border-rose-300 dark:border-rose-900 bg-background p-2.5 text-xs sm:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+                    className="w-full rounded-md border border-rose-300 dark:border-rose-900 bg-background p-2.5 text-xs sm:text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-rose-500"
                   />
                 </div>
               )}
@@ -551,8 +577,25 @@ export function TaskDetailModal({ task, isPM, currentUserId, onClose }: Props) {
           )}
         </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-border bg-muted/20 flex justify-end">
+        {/* Footer with primary action shortcuts */}
+        <div className="p-3 sm:p-4 border-t border-border bg-muted/20 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            {canWorkOnTask && (task.column === 'todo' || task.column === 'backlog') && (
+              <Button type="button" variant="outline" size="sm" onClick={handleStartProgress} loading={loading}>
+                Start Work
+              </Button>
+            )}
+            {canWorkOnTask && task.column !== 'done' && task.column !== 'review' && (
+              <Button type="button" size="sm" onClick={handleSubmitResolution} loading={loading}>
+                Send to Review
+              </Button>
+            )}
+            {isPM && task.column === 'review' && (
+              <Button type="button" size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handleManagerReview('approved')} loading={loading}>
+                Approve (Done)
+              </Button>
+            )}
+          </div>
           <Button variant="outline" size="sm" onClick={onClose}>
             Close
           </Button>

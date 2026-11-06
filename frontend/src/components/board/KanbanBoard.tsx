@@ -22,13 +22,25 @@ export function KanbanBoard({ projectId, project }: { projectId: string; project
   const qc = useQueryClient();
   const [activeTaskModal, setActiveTaskModal] = useState<{ column: string } | null>(null);
 
-  const isPM =
-    project?.owner?._id === user?._id ||
-    project?.members?.some(
+  const { data: fetchedProject } = useQuery(
+    ['project', projectId],
+    async () => {
+      const res = await apiClient.get(`/projects/${projectId}`);
+      return res.data.data.project;
+    },
+    { enabled: !project && !!projectId }
+  );
+  const activeProject = project || fetchedProject;
+
+  const isPM = Boolean(
+    user?.role === 'admin' ||
+    (activeProject?.owner?._id || activeProject?.owner)?.toString() === user?._id?.toString() ||
+    activeProject?.members?.some(
       (m: any) =>
-        (m.user?._id || m.user) === user?._id &&
+        (m.user?._id || m.user)?.toString() === user?._id?.toString() &&
         (m.role === 'project_manager' || m.role === 'admin')
-    );
+    )
+  );
 
   useJoinRoom(`project:${projectId}`);
 
@@ -238,7 +250,7 @@ export function KanbanBoard({ projectId, project }: { projectId: string; project
         <TaskModal
           projectId={projectId}
           column={activeTaskModal.column}
-          projectMembers={project?.members || []}
+          projectMembers={activeProject?.members || []}
           isPM={isPM}
           onClose={() => setActiveTaskModal(null)}
         />

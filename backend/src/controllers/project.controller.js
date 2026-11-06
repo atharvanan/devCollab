@@ -106,7 +106,9 @@ exports.getProjects = catchAsync(async (req, res) => {
 exports.getProject = catchAsync(async (req, res) => {
   const project = await Project.findById(req.params.id)
     .populate('owner', 'name email avatar')
-    .populate('members.user', 'name email avatar');
+    .populate('members.user', 'name email avatar')
+    .populate('deletionVote.initiatedBy', 'name email avatar')
+    .populate('deletionVote.votes.user', 'name email avatar');
   if (!project) throw new AppError('Project not found', 404);
 
   const hasAccess = project.hasAccess(req.user);
@@ -116,6 +118,8 @@ exports.getProject = catchAsync(async (req, res) => {
 
   // Refresh populated members in case auto-healing added the user
   await project.populate('members.user', 'name email avatar');
+  await project.populate('deletionVote.initiatedBy', 'name email avatar');
+  await project.populate('deletionVote.votes.user', 'name email avatar');
 
   res.json({ success: true, data: { project } });
 });
@@ -148,17 +152,47 @@ exports.updateProject = catchAsync(async (req, res) => {
 exports.deleteProject = catchAsync(async (req, res) => {
   const project = await Project.findById(req.params.id);
   if (!project) throw new AppError('Project not found', 404);
-  if (project.owner.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+
+  const isPM =
+    req.user.role === 'admin' ||
+    (project.owner?._id || project.owner)?.toString() === req.user._id.toString() ||
+    project.isProjectManager(req.user._id) ||
+    (Array.isArray(project.members) && project.members.some(m =>
+      (m.user?._id || m.user)?.toString() === req.user._id.toString() &&
+      (m.role === 'project_manager' || m.role === 'admin')
+    ));
+
+  if (!isPM) {
     await logGovernanceAudit({
       project: project._id,
       actor: req.user,
       action: 'PROJECT_DELETION_ATTEMPT',
       targetResource: 'project',
-      details: `${req.user.name} attempted to delete project "${project.name}" without Project Owner authority.`,
+      details: `${req.user.name} attempted to delete project "${project.name}" without Project Manager or Owner authority.`,
       severity: 'critical',
       status: 'blocked',
     });
-    throw new AppError('Only the project owner can delete this project', 403);
+    throw new AppError('Only Project Managers or the Project Owner can delete this project', 403);
+  }
+
+  // Protective consensus check: If project has multiple members, require deletion consensus approval
+  const activeMembers = Array.isArray(project.members) ? project.members.filter(m => m.user) : [];
+  if (activeMembers.length > 1 && req.user.role !== 'admin') {
+    if (!project.deletionVote || project.deletionVote.status !== 'approved') {
+      await logGovernanceAudit({
+        project: project._id,
+        actor: req.user,
+        action: 'PROJECT_DELETION_PROTECTED',
+        targetResource: 'project',
+        details: `${req.user.name} attempted to delete project "${project.name}" without required member consensus approval. Deletion blocked by Protective Deletion Policy.`,
+        severity: 'high',
+        status: 'blocked',
+      });
+      throw new AppError(
+        `Protective Deletion Requirement: This project has ${activeMembers.length} active team members. Project deletion requires unanimous consensus approval from all team members. Please initiate a deletion vote first.`,
+        403
+      );
+    }
   }
 
   const projectId = project._id;
@@ -607,7 +641,16 @@ exports.updateLifecycle = catchAsync(async (req, res) => {
   const project = await Project.findById(projectId);
   if (!project) throw new AppError('Project not found', 404);
 
-  if (!project.isProjectManager(req.user._id)) {
+  const isPM =
+    req.user.role === 'admin' ||
+    (project.owner?._id || project.owner)?.toString() === req.user._id.toString() ||
+    project.isProjectManager(req.user._id) ||
+    (Array.isArray(project.members) && project.members.some(m =>
+      (m.user?._id || m.user)?.toString() === req.user._id.toString() &&
+      (m.role === 'project_manager' || m.role === 'admin')
+    ));
+
+  if (!isPM) {
     await logGovernanceAudit({
       project: project._id,
       actor: req.user,
@@ -719,8 +762,9 @@ exports.getGovernanceSummary = catchAsync(async (req, res) => {
 exports.getSecurityAudits = catchAsync(async (req, res) => {
   const project = await Project.findById(req.params.id);
   if (!project) throw new AppError('Project not found', 404);
-  if (!project.isProjectManager(req.user._id) && project.getUserRole(req.user._id) !== 'security_engineer' && req.user.role !== 'admin') {
-    throw new AppError('Access denied: Only Project Managers, Security Engineers, and Platform Admins can view compliance logs', 403);
+  const hasAccess = project.hasAccess(req.user);
+  if (!hasAccess && req.user.role !== 'admin') {
+    throw new AppError('Access denied: You must be a member of this project to view compliance logs', 403);
   }
 
   const audits = await SecurityAudit.find({ project: project._id })
@@ -752,4 +796,189 @@ exports.resolveSecurityAudit = catchAsync(async (req, res) => {
   await audit.populate('resolvedBy', 'name email');
 
   res.json({ success: true, message: 'Security violation marked as resolved', data: { audit } });
+});
+
+exports.initiateDeletionVote = catchAsync(async (req, res) => {
+  const project = await Project.findById(req.params.id);
+  if (!project) throw new AppError('Project not found', 404);
+
+  const isPM =
+    req.user.role === 'admin' ||
+    (project.owner?._id || project.owner)?.toString() === req.user._id.toString() ||
+    project.isProjectManager(req.user._id) ||
+    (Array.isArray(project.members) && project.members.some(m =>
+      (m.user?._id || m.user)?.toString() === req.user._id.toString() &&
+      (m.role === 'project_manager' || m.role === 'admin')
+    ));
+
+  if (!isPM) {
+    throw new AppError('Only Project Managers or the Project Owner can initiate a project deletion request', 403);
+  }
+
+  const { reason = '' } = req.body;
+  const activeMembers = Array.isArray(project.members) ? project.members.filter(m => m.user) : [];
+
+  // If only 1 member (or no other members), automatically approve
+  const otherMembers = activeMembers.filter(m => (m.user?._id || m.user)?.toString() !== req.user._id.toString());
+  const autoApproved = otherMembers.length === 0;
+
+  project.deletionVote = {
+    status: autoApproved ? 'approved' : 'pending',
+    initiatedBy: req.user._id,
+    initiatedAt: new Date(),
+    reason: reason.trim(),
+    votes: [
+      {
+        user: req.user._id,
+        vote: 'approve',
+        comment: 'Initiated by Project Manager',
+        votedAt: new Date(),
+      },
+    ],
+  };
+
+  await project.save();
+  await project.populate('deletionVote.initiatedBy', 'name email avatar');
+  await project.populate('deletionVote.votes.user', 'name email avatar');
+
+  await logGovernanceAudit({
+    project: project._id,
+    actor: req.user,
+    action: 'PROJECT_DELETION_VOTE_INITIATED',
+    targetResource: 'project',
+    details: `${req.user.name} initiated protective deletion vote for project "${project.name}". ${reason ? `Reason: ${reason}` : ''}`.trim(),
+    severity: 'high',
+    status: 'success',
+  });
+
+  try {
+    const { getIO } = require('../socket');
+    getIO().to(`project:${project._id}`).emit('project:deletion_vote_updated', {
+      deletionVote: project.deletionVote,
+    });
+  } catch (_) {}
+
+  res.json({ success: true, data: { deletionVote: project.deletionVote } });
+});
+
+exports.castDeletionVote = catchAsync(async (req, res) => {
+  const project = await Project.findById(req.params.id);
+  if (!project) throw new AppError('Project not found', 404);
+
+  if (!project.isMember(req.user._id) && req.user.role !== 'admin') {
+    throw new AppError('Only active project members can vote on project deletion', 403);
+  }
+
+  if (!project.deletionVote || project.deletionVote.status !== 'pending') {
+    throw new AppError('There is no active deletion vote pending for this project', 400);
+  }
+
+  const { vote, comment = '' } = req.body;
+  if (!['approve', 'reject'].includes(vote)) {
+    throw new AppError('Vote must be either approve or reject', 400);
+  }
+
+  // Update or add vote
+  const existingVoteIndex = project.deletionVote.votes.findIndex(
+    v => (v.user?._id || v.user)?.toString() === req.user._id.toString()
+  );
+
+  if (existingVoteIndex >= 0) {
+    project.deletionVote.votes[existingVoteIndex].vote = vote;
+    project.deletionVote.votes[existingVoteIndex].comment = comment.trim();
+    project.deletionVote.votes[existingVoteIndex].votedAt = new Date();
+  } else {
+    project.deletionVote.votes.push({
+      user: req.user._id,
+      vote,
+      comment: comment.trim(),
+      votedAt: new Date(),
+    });
+  }
+
+  // Calculate consensus
+  if (vote === 'reject') {
+    project.deletionVote.status = 'rejected';
+  } else {
+    // Check if all members approved
+    const activeMemberIds = (project.members || [])
+      .map(m => (m.user?._id || m.user)?.toString())
+      .filter(Boolean);
+    const approvedUserIds = project.deletionVote.votes
+      .filter(v => v.vote === 'approve')
+      .map(v => (v.user?._id || v.user)?.toString());
+    
+    const allApproved = activeMemberIds.every(id => approvedUserIds.includes(id));
+    if (allApproved) {
+      project.deletionVote.status = 'approved';
+    }
+  }
+
+  await project.save();
+  await project.populate('deletionVote.initiatedBy', 'name email avatar');
+  await project.populate('deletionVote.votes.user', 'name email avatar');
+
+  await logGovernanceAudit({
+    project: project._id,
+    actor: req.user,
+    action: 'PROJECT_DELETION_VOTE_CAST',
+    targetResource: 'project',
+    details: `${req.user.name} voted ${vote.toUpperCase()} on project deletion. Status is now ${project.deletionVote.status.toUpperCase()}.`,
+    severity: 'medium',
+    status: 'success',
+  });
+
+  try {
+    const { getIO } = require('../socket');
+    getIO().to(`project:${project._id}`).emit('project:deletion_vote_updated', {
+      deletionVote: project.deletionVote,
+    });
+  } catch (_) {}
+
+  res.json({ success: true, data: { deletionVote: project.deletionVote } });
+});
+
+exports.cancelDeletionVote = catchAsync(async (req, res) => {
+  const project = await Project.findById(req.params.id);
+  if (!project) throw new AppError('Project not found', 404);
+
+  const isPM =
+    req.user.role === 'admin' ||
+    (project.owner?._id || project.owner)?.toString() === req.user._id.toString() ||
+    project.isProjectManager(req.user._id) ||
+    (Array.isArray(project.members) && project.members.some(m =>
+      (m.user?._id || m.user)?.toString() === req.user._id.toString() &&
+      (m.role === 'project_manager' || m.role === 'admin')
+    ));
+
+  if (!isPM) {
+    throw new AppError('Only Project Managers or the Project Owner can cancel a deletion request', 403);
+  }
+
+  project.deletionVote = {
+    status: 'none',
+    reason: '',
+    votes: [],
+  };
+
+  await project.save();
+
+  await logGovernanceAudit({
+    project: project._id,
+    actor: req.user,
+    action: 'PROJECT_DELETION_VOTE_CANCELLED',
+    targetResource: 'project',
+    details: `${req.user.name} cancelled the project deletion request.`,
+    severity: 'medium',
+    status: 'success',
+  });
+
+  try {
+    const { getIO } = require('../socket');
+    getIO().to(`project:${project._id}`).emit('project:deletion_vote_updated', {
+      deletionVote: project.deletionVote,
+    });
+  } catch (_) {}
+
+  res.json({ success: true, message: 'Deletion request cancelled successfully' });
 });

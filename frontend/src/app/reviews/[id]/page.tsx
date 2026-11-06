@@ -13,20 +13,38 @@ import { STATUS_COLORS, DOMAINS } from '@/lib/utils';
 import { CodeViewer } from '@/components/reviews/CodeViewer';
 import { CommentThread } from '@/components/reviews/CommentThread';
 import { useToast } from '@/components/ui/Toast';
+import { useAppSelector } from '@/hooks/useRedux';
 
 export default function ReviewDetailPage() {
   const { id } = useParams<{ id: string }>();
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAppSelector((s) => s.auth);
   const [activeLine, setActiveLine] = useState<number | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
   useJoinRoom(`review:${id}`);
 
-  const { data: review, isLoading } = useQuery(['review', id], async () => {
+  const { data, isLoading } = useQuery(['review', id], async () => {
     const res = await apiClient.get(`/reviews/${id}`);
-    return res.data.data.review;
+    return res.data.data;
   });
+
+  const review = data?.review;
+  const project = data?.project;
+  const isPM = Boolean(
+    data?.isPM ||
+    user?.role === 'admin' ||
+    (project?.owner?._id || project?.owner)?.toString() === user?._id?.toString() ||
+    project?.members?.some(
+      (m: any) =>
+        (m.user?._id || m.user)?.toString() === user?._id?.toString() &&
+        (m.role === 'project_manager' || m.role === 'admin')
+    )
+  );
+  const isAuthor = Boolean(
+    (review?.author?._id || review?.author)?.toString() === user?._id?.toString()
+  );
 
   useEffect(() => {
     if (review?.title) {
@@ -82,11 +100,8 @@ export default function ReviewDetailPage() {
   const commentsForLine = (line: number) =>
     (review.inlineComments || []).filter((c: any) => c.lineNumber === line);
 
-  const backLink = review.project?._id
-    ? `/projects/${review.project._id}`
-    : typeof review.project === 'string'
-    ? `/projects/${review.project}`
-    : '/reviews';
+  const projectId = review.project?._id || (typeof review.project === 'string' ? review.project : project?._id);
+  const backLink = projectId ? `/projects/${projectId}?tab=reviews` : '/reviews';
 
   return (
     <DashboardLayout>
@@ -96,7 +111,7 @@ export default function ReviewDetailPage() {
             href={backLink}
             className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground mb-3 transition-colors"
           >
-            <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back to Project
+            <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back to Code Reviews
           </Link>
 
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -109,7 +124,7 @@ export default function ReviewDetailPage() {
                   {review.status.replace('_', ' ')}
                 </Badge>
                 {review.domain && review.domain !== 'general' && (
-                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-sm bg-primary/10 text-primary border border-primary/20">
                     Domain: {DOMAINS[review.domain] || review.domain}
                   </span>
                 )}
@@ -119,38 +134,46 @@ export default function ReviewDetailPage() {
               </p>
             </div>
 
-            {/* Action buttons with feedback */}
+            {/* Action buttons with role and author checks */}
             <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <Button
-                size="sm"
-                variant="outline"
-                loading={updatingStatus === 'approved'}
-                disabled={statusMutation.isLoading || review.status === 'approved'}
-                onClick={() => statusMutation.mutate('approved')}
-                className="hover:border-green-500 hover:text-green-600 transition-colors"
-              >
-                <CheckCircle className="w-3.5 h-3.5 text-green-600" /> Approve
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                loading={updatingStatus === 'changes_requested'}
-                disabled={statusMutation.isLoading || review.status === 'changes_requested'}
-                onClick={() => statusMutation.mutate('changes_requested')}
-                className="hover:border-amber-500 hover:text-amber-600 transition-colors"
-              >
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-600" /> Request Changes
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                loading={updatingStatus === 'closed'}
-                disabled={statusMutation.isLoading || review.status === 'closed'}
-                onClick={() => statusMutation.mutate('closed')}
-                className="hover:border-destructive hover:text-destructive transition-colors"
-              >
-                <XCircle className="w-3.5 h-3.5 text-destructive" /> Close
-              </Button>
+              {isPM && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  loading={updatingStatus === 'approved'}
+                  disabled={statusMutation.isLoading || review.status === 'approved'}
+                  onClick={() => statusMutation.mutate('approved')}
+                  className="hover:border-green-500 hover:text-green-600 transition-colors"
+                >
+                  <CheckCircle className="w-3.5 h-3.5 text-green-600" /> Approve
+                </Button>
+              )}
+
+              {!isAuthor && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  loading={updatingStatus === 'changes_requested'}
+                  disabled={statusMutation.isLoading || review.status === 'changes_requested'}
+                  onClick={() => statusMutation.mutate('changes_requested')}
+                  className="hover:border-amber-500 hover:text-amber-600 transition-colors"
+                >
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600" /> Request Changes
+                </Button>
+              )}
+
+              {(isPM || isAuthor) && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  loading={updatingStatus === 'closed'}
+                  disabled={statusMutation.isLoading || review.status === 'closed'}
+                  onClick={() => statusMutation.mutate('closed')}
+                  className="hover:border-destructive hover:text-destructive transition-colors"
+                >
+                  <XCircle className="w-3.5 h-3.5 text-destructive" /> Close
+                </Button>
+              )}
             </div>
           </div>
         </div>

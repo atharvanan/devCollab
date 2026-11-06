@@ -82,10 +82,23 @@ exports.createTask = catchAsync(async (req, res) => {
     }
   }
 
-  const count = await Task.countDocuments({ project: projectId, column: req.body.column || 'backlog' });
-  
-  // Sanitize fields against mass-assignment
-  const initialColumn = (req.body.column === 'todo') ? 'todo' : 'backlog';
+  const isPM =
+    req.user.role === 'admin' ||
+    (project.owner?._id || project.owner)?.toString() === req.user._id.toString() ||
+    project.isProjectManager(req.user._id);
+
+  const validColumns = ['backlog', 'todo', 'in_progress', 'review'];
+  let initialColumn = 'todo';
+  if (req.body.column && validColumns.includes(req.body.column)) {
+    initialColumn = req.body.column;
+  } else if (req.body.column === 'done' && isPM) {
+    initialColumn = 'done';
+  } else if (req.body.column === 'backlog') {
+    initialColumn = 'backlog';
+  }
+
+  const count = await Task.countDocuments({ project: projectId, column: initialColumn });
+
   const task = await Task.create({
     title: req.body.title,
     description: req.body.description || '',
@@ -151,13 +164,19 @@ exports.updateTask = catchAsync(async (req, res) => {
     throw new AppError('Viewers have read-only access and cannot edit tasks', 403);
   }
 
-  const isPM = project.isProjectManager(req.user._id);
+  const isPM =
+    req.user.role === 'admin' ||
+    (project.owner?._id || project.owner)?.toString() === req.user._id.toString() ||
+    project.isProjectManager(req.user._id);
+
   const isAssignee = task.assignees?.some(
     (a) => (a._id || a).toString() === req.user._id.toString()
   );
   const isCreator = (task.createdBy?._id || task.createdBy)?.toString() === req.user._id.toString();
+  const isMatchingRole = task.targetRole === 'any' || task.targetRole === userRole;
+  const isClaiming = (!task.assignees || task.assignees.length === 0) && isMatchingRole;
 
-  if (!isPM && !isAssignee && !isCreator) {
+  if (!isPM && !isAssignee && !isCreator && !isClaiming) {
     throw new AppError('Permission Denied: Only the assigned engineer, creator, or Project Manager can edit this task', 403);
   }
 
@@ -357,7 +376,12 @@ exports.reviewTask = catchAsync(async (req, res) => {
   const project = await Project.findById(task.project);
   if (!project) throw new AppError('Project not found', 404);
 
-  if (!project.isProjectManager(req.user._id)) {
+  const isPM =
+    req.user.role === 'admin' ||
+    (project.owner?._id || project.owner)?.toString() === req.user._id.toString() ||
+    project.isProjectManager(req.user._id);
+
+  if (!isPM) {
     throw new AppError('Only the Project Manager or owner can review and sign off on tasks', 403);
   }
 

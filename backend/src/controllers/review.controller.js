@@ -138,12 +138,19 @@ exports.getReview = catchAsync(async (req, res) => {
     .populate('reviewers', 'name avatar');
   if (!review) throw new AppError('Review not found', 404);
 
-  const project = await Project.findById(review.project);
+  const project = await Project.findById(review.project)
+    .populate('owner', 'name email avatar')
+    .populate('members.user', 'name email avatar');
   if (!project) throw new AppError('Project not found', 404);
   const hasAccess = project.hasAccess(req.user);
   if (!hasAccess) throw new AppError('Access denied: You are not authorized to view reviews in this project', 403);
 
-  res.json({ success: true, data: { review } });
+  const isPM =
+    req.user.role === 'admin' ||
+    (project.owner?._id || project.owner)?.toString() === req.user._id.toString() ||
+    project.isProjectManager(req.user._id);
+
+  res.json({ success: true, data: { review, project, isPM } });
 });
 
 exports.addInlineComment = catchAsync(async (req, res) => {
@@ -266,7 +273,14 @@ exports.updateStatus = catchAsync(async (req, res) => {
   const hasAccess = project.hasAccess(req.user);
   if (!hasAccess) throw new AppError('Access denied: You are not a member of this project', 403);
 
-  const isPM = project.isProjectManager(req.user._id);
+  const isPM =
+    req.user.role === 'admin' ||
+    (project.owner?._id || project.owner)?.toString() === req.user._id.toString() ||
+    project.isProjectManager(req.user._id) ||
+    (Array.isArray(project.members) && project.members.some(m =>
+      (m.user?._id || m.user)?.toString() === req.user._id.toString() &&
+      (m.role === 'project_manager' || m.role === 'admin')
+    ));
   const userRole = project.getUserRole(req.user._id);
 
   if (userRole === 'viewer') {
@@ -275,6 +289,12 @@ exports.updateStatus = catchAsync(async (req, res) => {
 
   if (status === 'approved' && !isPM) {
     throw new AppError('Compliance Restriction: Only Project Managers can approve code reviews', 403);
+  }
+
+  // Author cannot request changes on their own review (Requirement 5)
+  const isAuthor = (review.author?._id || review.author)?.toString() === req.user._id.toString();
+  if (status === 'changes_requested' && isAuthor) {
+    throw new AppError('Logical Restriction: Review author cannot request changes on their own review', 400);
   }
   review.status = status;
   await review.save();

@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { useMutation } from 'react-query';
+import { useMutation, useQuery } from 'react-query';
 import { X, UserCheck, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -34,6 +34,30 @@ export function TaskModal({
   const [assigneeId, setAssigneeId] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [error, setError] = useState('');
+
+  const { data: fallbackProject } = useQuery(
+    ['project', projectId],
+    async () => {
+      const res = await apiClient.get(`/projects/${projectId}`);
+      return res.data.data.project;
+    },
+    { enabled: (!projectMembers || projectMembers.length === 0) && !!projectId }
+  );
+
+  const activeMembers = (projectMembers && projectMembers.length > 0)
+    ? projectMembers
+    : (fallbackProject?.members || []);
+
+  // Filter members matching selected targetRole
+  const matchingMembers = activeMembers.filter((m: any) => {
+    if (targetRole === 'any') return true;
+    return m.role === targetRole;
+  });
+
+  const otherMembers = activeMembers.filter((m: any) => {
+    if (targetRole === 'any') return false;
+    return m.role !== targetRole;
+  });
 
   const createMutation = useMutation(
     async () => {
@@ -149,11 +173,24 @@ export function TaskModal({
               className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <option value="">Unassigned</option>
-              {projectMembers.map((m: any) => (
-                <option key={m.user?._id || m.user} value={m.user?._id || m.user}>
-                  {m.user?.name || 'Member'} ({ROLE_LABELS[m.role] || m.role})
-                </option>
-              ))}
+              {matchingMembers.length > 0 && (
+                <optgroup label={targetRole === 'any' ? 'Project Members' : `${ROLE_LABELS[targetRole] || targetRole} Team`}>
+                  {matchingMembers.map((m: any) => (
+                    <option key={m.user?._id || m.user} value={m.user?._id || m.user}>
+                      {m.user?.name || 'Member'} ({ROLE_LABELS[m.role] || m.role})
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {otherMembers.length > 0 && (
+                <optgroup label="Other Project Members">
+                  {otherMembers.map((m: any) => (
+                    <option key={m.user?._id || m.user} value={m.user?._id || m.user}>
+                      {m.user?.name || 'Member'} ({ROLE_LABELS[m.role] || m.role})
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </div>
         </div>

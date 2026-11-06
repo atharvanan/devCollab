@@ -20,11 +20,14 @@ function VerifyOTPContent() {
 
   const userId = searchParams.get('userId') || '';
   const initialEmail = searchParams.get('email') || '';
+  const initialCode = searchParams.get('code') || '';
 
   // OTP was already triggered if we arrived from login/register with URL params
   const otpAlreadySent = !!(userId || initialEmail);
 
-  const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''));
+  const [digits, setDigits] = useState<string[]>(
+    initialCode && initialCode.length === OTP_LENGTH ? initialCode.split('') : Array(OTP_LENGTH).fill('')
+  );
   const [email, setEmail] = useState(initialEmail);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);

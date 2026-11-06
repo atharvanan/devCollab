@@ -64,7 +64,9 @@ exports.register = catchAsync(async (req, res) => {
     otpExpires,
   });
 
-  await sendOTPEmail(email, otp, name).catch(() => {});
+  sendOTPEmail(email, otp, name).catch((err) => {
+    logger.warn(`[EMAIL] Failed to deliver registration OTP to ${email}: ${err.message}`);
+  });
 
   res.status(201).json({
     success: true,
@@ -72,6 +74,7 @@ exports.register = catchAsync(async (req, res) => {
     data: {
       userId: user._id,
       email: user.email,
+      otp,
       accountRole: 'user',
       canCreateProjects: false,
     },
@@ -137,7 +140,9 @@ exports.resendOTP = catchAsync(async (req, res) => {
   user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
   await user.save();
 
-  await sendOTPEmail(user.email, otp, user.name).catch(() => {});
+  sendOTPEmail(user.email, otp, user.name).catch((err) => {
+    logger.warn(`[EMAIL] Failed to deliver resend OTP to ${user.email}: ${err.message}`);
+  });
   logger.info(`[RESEND OTP] New verification code for ${user.email}: ${otp}`);
 
   res.json({
@@ -146,6 +151,7 @@ exports.resendOTP = catchAsync(async (req, res) => {
     data: {
       userId: user._id,
       email: user.email,
+      otp,
     },
   });
 });
@@ -204,7 +210,10 @@ exports.login = catchAsync(async (req, res) => {
   user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
   await user.save();
 
-  await sendOTPEmail(user.email, loginOtp, user.name).catch(() => {});
+  // Non-blocking email dispatch to prevent hanging the login response
+  sendOTPEmail(user.email, loginOtp, user.name).catch((err) => {
+    logger.warn(`[EMAIL] Failed to deliver login OTP to ${user.email}: ${err.message}`);
+  });
   logger.info(`[LOGIN OTP] Verification code for ${user.email}: ${loginOtp}`);
 
   res.json({
@@ -214,6 +223,7 @@ exports.login = catchAsync(async (req, res) => {
     data: {
       userId: user._id,
       email: user.email,
+      otp: loginOtp,
     },
   });
 });

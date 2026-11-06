@@ -37,6 +37,9 @@ const getTransporter = async () => {
         pass: process.env.SMTP_PASS,
       },
       tls: { rejectUnauthorized: false },
+      connectionTimeout: 3000,
+      greetingTimeout: 3000,
+      socketTimeout: 3000,
     });
     logger.info(`[EMAIL] Using real SMTP via ${process.env.SMTP_USER}`);
   } else {

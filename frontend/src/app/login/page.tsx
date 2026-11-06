@@ -48,6 +48,7 @@ export default function LoginPage() {
         const params = new URLSearchParams();
         if (payload.userId) params.set('userId', payload.userId);
         if (payload.email) params.set('email', payload.email);
+        if (payload.otp) params.set('code', payload.otp);
         params.set('mode', 'login');
         router.push(`/verify-otp?${params.toString()}`);
         return;

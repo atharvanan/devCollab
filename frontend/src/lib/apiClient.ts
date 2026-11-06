@@ -13,6 +13,7 @@ const BASE_URL = getBaseUrl();
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,
+  timeout: 15000,
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });

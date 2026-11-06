@@ -4,7 +4,7 @@
 **Specification Reference**: `DevCollab_Comprehensive_QA_Test_Suite_v2.pdf` (Suites A through J, Pages 14–23)  
 **Execution Environment**: Localhost (Express Backend :5000 / Next.js 14 Frontend :3000 / MongoDB Memory Server & Local DB)  
 **Verification Date**: November 2026  
-**Lead QA Engineer**: Antigravity Senior QA & Security Automation Specialist  
+**Lead QA Engineer**: DevCollab QA & Engineering Team  
 
 ---
 

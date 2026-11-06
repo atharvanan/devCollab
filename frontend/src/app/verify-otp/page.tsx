@@ -232,7 +232,6 @@ function VerifyOTPContent() {
     );
   }
 
-  // ─── STEP 1: No params → ask for email and trigger OTP send ────────────────
   if (!otpSent) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8 relative">
@@ -306,7 +305,6 @@ function VerifyOTPContent() {
 
   const isLoginMode = searchParams.get('mode') === 'login';
 
-  // ─── STEP 2: OTP sent → show the 6-box entry UI ──────────────────────────
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8 relative">
       <div className="absolute top-4 right-4 sm:top-6 sm:right-6">

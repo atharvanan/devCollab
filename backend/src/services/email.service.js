@@ -12,12 +12,6 @@ const logger = require('../utils/logger');
 let transporterInstance = null;
 let etherealPreviewBase = null;
 
-/**
- * Creates (and caches) the appropriate transporter.
- * - In development with no real SMTP configured: auto-provisions a free Ethereal test account.
- *   Emails are captured at https://ethereal.email — no setup needed.
- * - In production (or when real SMTP env vars are set): uses the configured SMTP credentials.
- */
 const getTransporter = async () => {
   if (transporterInstance) return transporterInstance;
 
@@ -126,7 +120,6 @@ const sendViaResend = async ({ to, subject, html, text }) => {
 };
 
 const sendEmail = async ({ to, subject, html, text }) => {
-  // If RESEND_API_KEY is set, dispatch over standard HTTPS Port 443 (bypasses cloud SMTP port blocks)
   if (process.env.RESEND_API_KEY) {
     try {
       return await sendViaResend({ to, subject, html, text });
@@ -145,19 +138,9 @@ const sendEmail = async ({ to, subject, html, text }) => {
 
     const info = await transporter.sendMail({ from, to, subject, html, text });
     logger.info(`[EMAIL] Delivered to ${to}: ${info.messageId}`);
-
-    // When using Ethereal, log a direct preview link
-    const previewUrl = nodemailer.getTestMessageUrl(info);
-    if (previewUrl) {
-      logger.info(`[EMAIL] 📬 Preview OTP email here → ${previewUrl}`);
-    }
-
     return info;
   } catch (err) {
     logger.error(`[EMAIL] Failed to deliver to ${to}:`, err.message);
-    if (err.message && (err.message.includes('timeout') || err.message.includes('ETIMEDOUT') || err.code === 'ETIMEDOUT')) {
-      logger.warn('[EMAIL] Outbound SMTP timed out. Render Free tier blocks outbound SMTP ports 465/587. Configure RESEND_API_KEY to send over HTTPS Port 443 or upgrade to a paid tier.');
-    }
     throw err;
   }
 };

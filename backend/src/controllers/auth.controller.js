@@ -17,15 +17,12 @@ const generateOTP = () => crypto.randomInt(100000, 1000000).toString();
 exports.register = catchAsync(async (req, res) => {
   const { name, email, password } = req.body;
 
-  // Defensive Security: Ignore and sanitize any client-supplied elevated privileges
-  // Public registration strictly creates unprivileged regular accounts ('user', canCreateProjects: false)
   let user = await User.findOne({ email });
   if (user) {
     if (user.isVerified) {
       throw new AppError('Email already registered', 400);
     }
 
-    // Account exists but was never verified -> Refresh credentials and OTP
     const otp = generateOTP();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
     user.name = name || user.name;
@@ -198,7 +195,6 @@ exports.login = catchAsync(async (req, res) => {
     return res.json({ success: true, data: { accessToken, user: user.toPublicJSON() } });
   }
 
-  // Multi-factor verification: Generate 6-digit OTP and send directly to user's real email
   const loginOtp = generateOTP();
   user.otp = loginOtp;
   user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);

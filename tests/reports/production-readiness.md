@@ -52,6 +52,6 @@ The platform is **certified production-ready** for enterprise deployment.
 
 ## 4. Sign-Off Authorization
 
-- **Lead QA Engineer**: Antigravity Quality Assurance & Automation
-- **Lead Application Security Tester**: Antigravity Security Engineering
+- **Lead QA Engineer**: DevCollab QA & Automation Team
+- **Lead Application Security Tester**: DevCollab Security Engineering
 - **Release Decision**: **PRODUCTION RELEASE AUTHORIZED (GO)**

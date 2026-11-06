@@ -107,7 +107,6 @@ export default function RegisterPage() {
     router.push(`/verify-otp?${params.toString()}`);
   };
 
-  // Step 2: show email sent confirmation
   if (registered) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8 relative">

@@ -8,7 +8,7 @@ const logger = require('./logger');
  * Configured via PRIMARY_ADMIN_EMAIL environment variable.
  */
 function getPrimaryAdminEmail() {
-  return (process.env.PRIMARY_ADMIN_EMAIL || 'atharvanandurkar2411@gmail.com').toLowerCase().trim();
+  return (process.env.PRIMARY_ADMIN_EMAIL || '').toLowerCase().trim();
 }
 
 /**

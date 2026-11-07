@@ -36,11 +36,11 @@ services:
       - key: SMTP_PORT
         value: 465
       - key: SMTP_USER
-        value: atharvanandurkar2411@gmail.com
+        sync: false
       - key: SMTP_PASS
         sync: false
       - key: EMAIL_FROM
-        value: DevCollab <atharvanandurkar2411@gmail.com>
+        value: DevCollab <noreply@devcollab.app>
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_FROM

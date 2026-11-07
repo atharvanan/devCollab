@@ -120,6 +120,18 @@ const sendViaResend = async ({ to, subject, html, text }) => {
 };
 
 const sendEmail = async ({ to, subject, html, text }) => {
+  const recipient = (to || '').toLowerCase().trim();
+  if (
+    !recipient ||
+    recipient === 'admin@devcollab.com' ||
+    recipient.endsWith('@devcollab.com') ||
+    recipient.endsWith('@example.com') ||
+    recipient.endsWith('@test.com')
+  ) {
+    logger.info(`[EMAIL] Suppressed email dispatch to internal or test recipient: ${to}`);
+    return { success: true, messageId: 'internal-mock-suppressed' };
+  }
+
   if (process.env.RESEND_API_KEY) {
     try {
       return await sendViaResend({ to, subject, html, text });
@@ -146,6 +158,18 @@ const sendEmail = async ({ to, subject, html, text }) => {
 };
 
 const sendOTPEmail = async (to, otp, name) => {
+  const recipient = (to || '').toLowerCase().trim();
+  if (
+    !recipient ||
+    recipient === 'admin@devcollab.com' ||
+    recipient.endsWith('@devcollab.com') ||
+    recipient.endsWith('@example.com') ||
+    recipient.endsWith('@test.com')
+  ) {
+    logger.info(`[AUTH] Verification OTP for ${to} (mock/internal): ${otp}`);
+    return { success: true, messageId: 'internal-mock-suppressed' };
+  }
+
   logger.info(`[AUTH] Verification OTP for ${to}: ${otp}`);
 
   const html = `

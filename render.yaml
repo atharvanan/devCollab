@@ -28,7 +28,7 @@ services:
       - key: JWT_REFRESH_EXPIRES_IN
         value: 7d
       - key: PRIMARY_ADMIN_EMAIL
-        value: admin@devcollab.com
+        value: atharvanandurkar2411@gmail.com
       - key: INITIAL_ADMIN_PASSWORD
         sync: false
       - key: SMTP_HOST

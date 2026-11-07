@@ -102,7 +102,7 @@ async function runE2EValidation() {
   assert(healthRes.status === 200 && healthRes.body.status === 'ok', '1. Backend API /health reports status: ok');
 
   // 2. Authentication: Platform Administrator (PM / Owner) with Real OTP Flow
-  const adminEmail = process.env.PRIMARY_ADMIN_EMAIL || 'admin@devcollab.com';
+  const adminEmail = process.env.PRIMARY_ADMIN_EMAIL || 'atharvanandurkar2411@gmail.com';
   const adminPassword = process.env.INITIAL_ADMIN_PASSWORD || 'Password123!';
 
   const adminStep1 = await request('/auth/login', 'POST', {

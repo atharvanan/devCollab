@@ -15,8 +15,8 @@ let etherealPreviewBase = null;
 const getTransporter = async () => {
   if (transporterInstance) return transporterInstance;
 
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPass = process.env.SMTP_PASS;
+  const smtpUser = process.env.SMTP_USER || 'atharvanandurkar2411@gmail.com';
+  const smtpPass = process.env.SMTP_PASS || 'sgpxugfzinatkcvn';
 
   const isRealSMTP =
     smtpUser &&
@@ -143,7 +143,7 @@ const sendEmail = async ({ to, subject, html, text }) => {
 
   try {
     const transporter = await getTransporter();
-    const smtpUser = process.env.SMTP_USER;
+    const smtpUser = process.env.SMTP_USER || 'atharvanandurkar2411@gmail.com';
     const from = smtpUser
       ? `DevCollab <${smtpUser}>`
       : (process.env.EMAIL_FROM || 'DevCollab <noreply@devcollab.app>');

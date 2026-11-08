@@ -71,7 +71,7 @@ async function runCleanup() {
   );
 
   console.log('[CLEANUP] Step 3: Resetting / Re-provisioning Platform Administrator...');
-  // Ensure default commercial admin exists: admin@devcollab.com / Password123!
+  // Ensure platform admin exists if configured
   const admin = await bootstrapPlatformAdmin();
   console.log(`[CLEANUP] Platform Administrator active: ${admin.email}`);
 

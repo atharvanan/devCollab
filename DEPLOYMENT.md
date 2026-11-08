@@ -43,7 +43,7 @@ Set the following environment variables in Render:
 | `JWT_REFRESH_SECRET` | *(64-char random hex string)* | Secret for signing refresh tokens |
 | `JWT_ACCESS_EXPIRES_IN` | `15m` | Access token lifespan |
 | `JWT_REFRESH_EXPIRES_IN` | `7d` | Refresh token lifespan |
-| `PRIMARY_ADMIN_EMAIL` | `admin@devcollab.com` | Primary workspace administrator account |
+| `PRIMARY_ADMIN_EMAIL` | `your-email@example.com` | Primary workspace administrator account |
 | `INITIAL_ADMIN_PASSWORD` | `SecureAdminPass2026!` | Initial password for the administrator bootstrap |
 | `PRIMARY_ADMIN_NAME` | `Workspace Administrator` | Administrator display name |
 | `SMTP_HOST` | `smtp.gmail.com` (or SendGrid host) | Outgoing email server |
@@ -86,7 +86,7 @@ In the Vercel project configuration, set:
    { "status": "ok", "timestamp": "..." }
    ```
 2. **Administrator Onboarding**:
-   Log in at `https://<your-vercel-app>.vercel.app/login` using your configured administrator credentials (`admin@devcollab.com` / `SecureAdminPass2026!`).
+   Sign up at `https://<your-vercel-app>.vercel.app/register` to create and verify your administrator account.
 3. **Real-time Live Chat & Pair Programming**:
    Create a project, invite a teammate, and test the real-time collaborative coding studio with synchronized chat.
 

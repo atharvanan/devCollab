@@ -83,7 +83,7 @@ async function runGovernanceTests() {
   }
 
   // Authenticate Platform Administrator
-  const adminAccount = await getOrCreateUser('Workspace Administrator', 'admin@devcollab.com', 'admin', true);
+  const adminAccount = await getOrCreateUser('Workspace Administrator', 'test.admin@example.local', 'admin', true);
   const adminToken = adminAccount.token;
   const adminUser = adminAccount.user;
   assert(adminToken && adminUser.role === 'admin', '1. Platform Administrator authenticated with elevated privileges');

@@ -73,7 +73,7 @@ async function runDeleteAccountTests() {
 
     // 1. Authenticate Admin
     console.log('\n--- 1. Testing Admin Account Deletion Protection ---');
-    const adminEmail = process.env.PRIMARY_ADMIN_EMAIL || 'admin@devcollab.com';
+    const adminEmail = process.env.PRIMARY_ADMIN_EMAIL || 'test.admin@example.local';
     const adminPassword = 'Password123!';
     await request('/auth/login', 'POST', {
       email: adminEmail,
